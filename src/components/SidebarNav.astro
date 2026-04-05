@@ -1,0 +1,31 @@
+---
+// src/components/SidebarNav.astro
+interface Props {
+  currentChapter: number;
+}
+
+const { currentChapter } = Astro.props;
+
+const chapters = [
+  { num: 1, slug: '01-tensors',            title: 'Tensors' },
+  { num: 2, slug: '02-autodiff',           title: 'Autodiff' },
+  { num: 3, slug: '03-gradient-descent',   title: 'Gradient Descent' },
+  { num: 4, slug: '04-linear-layers',      title: 'Linear Layers' },
+  { num: 5, slug: '05-activations',        title: 'Activations' },
+  { num: 6, slug: '06-cnns',               title: 'CNNs' },
+  { num: 7, slug: '07-batchnorm-dropout',  title: 'BatchNorm + Dropout' },
+  { num: 8, slug: '08-mnist-capstone',     title: 'MNIST Capstone' },
+];
+---
+
+<nav>
+  {chapters.map(ch => (
+    <a
+      href={`/lessons/${ch.slug}`}
+      class={`nav-item${ch.num === currentChapter ? ' active' : ''}`}
+    >
+      <span class="nav-chapter-num">{String(ch.num).padStart(2, '0')}</span>
+      {ch.title}
+    </a>
+  ))}
+</nav>
