@@ -1,0 +1,38 @@
+---
+// src/pages/lessons/[slug].astro
+import { getCollection, render } from 'astro:content';
+import LessonLayout from '../../layouts/LessonLayout.astro';
+import PrevNext from '../../components/PrevNext.astro';
+
+export async function getStaticPaths() {
+  const lessons = await getCollection('lessons');
+  // Sort by chapter number
+  lessons.sort((a, b) => a.data.chapter - b.data.chapter);
+
+  return lessons.map((lesson, i) => ({
+    params: { slug: lesson.id },
+    props: {
+      lesson,
+      prev: i > 0
+        ? { slug: lessons[i - 1].id, title: lessons[i - 1].data.title }
+        : undefined,
+      next: i < lessons.length - 1
+        ? { slug: lessons[i + 1].id, title: lessons[i + 1].data.title }
+        : undefined,
+    },
+  }));
+}
+
+const { lesson, prev, next } = Astro.props;
+const { Content } = await render(lesson);
+---
+
+<LessonLayout
+  title={lesson.data.title}
+  chapter={lesson.data.chapter}
+  description={lesson.data.description}
+>
+  <h1>{lesson.data.title}</h1>
+  <Content />
+  <PrevNext prev={prev} next={next} />
+</LessonLayout>
