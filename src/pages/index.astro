@@ -1,17 +1,40 @@
 ---
+// src/pages/index.astro
+import { getCollection } from 'astro:content';
+import '../styles/global.css';
 
+const lessons = await getCollection('lessons');
+lessons.sort((a, b) => a.data.chapter - b.data.chapter);
 ---
 
+<!doctype html>
 <html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Deep Learning from Scratch</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body>
+    <div class="hero">
+      <h1>Deep Learning<br />from Scratch</h1>
+      <p class="subtitle">
+        Tensors, autodiff, gradient descent, CNNs — built from first principles
+        in C++. These notes are the understanding that came out the other side.
+      </p>
+      <a href="/lessons/01-tensors" class="cta">Start with Tensors →</a>
+    </div>
+
+    <div class="chapter-grid">
+      {lessons.map(lesson => (
+        <a href={`/lessons/${lesson.id}`} class="chapter-card">
+          <div class="chapter-num">
+            {String(lesson.data.chapter).padStart(2, '0')}
+          </div>
+          <h3>{lesson.data.title}</h3>
+          <p>{lesson.data.description}</p>
+        </a>
+      ))}
+    </div>
+  </body>
 </html>
