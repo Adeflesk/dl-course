@@ -1,0 +1,35 @@
+---
+// src/layouts/LessonLayout.astro
+import SidebarNav from '../components/SidebarNav.astro';
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  chapter: number;
+  description: string;
+}
+
+const { title, chapter, description } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <title>{title} — Deep Learning from Scratch</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="sidebar-title">Deep Learning<br />from Scratch</div>
+        <SidebarNav currentChapter={chapter} />
+      </aside>
+      <main class="main-content">
+        <slot />
+      </main>
+    </div>
+  </body>
+</html>
