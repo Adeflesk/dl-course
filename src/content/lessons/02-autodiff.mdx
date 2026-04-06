@@ -4,4 +4,79 @@ chapter: 2
 description: "Computation graphs, chain rule, and topological sort backward pass"
 ---
 
-Content coming soon.
+To train a neural network, you need to know how much each weight contributed to the loss. That means computing the partial derivative of the loss with respect to every weight. Automatic differentiation (autodiff) does this exactly — not numerically, not symbolically, but by tracing the computation and applying the chain rule backward through it.
+
+## The computation graph
+
+Every time you write `z = x * w + b`, you're building a graph. Each operation (`*`, `+`) creates a new node that records which tensors it consumed. When you call `loss.backward()`, the framework walks this graph in reverse, propagating gradients from the loss back to the leaves.
+
+In tensorflowccp, every `Tensor` carries a `backOp` pointer — the operation that produced it. Leaf tensors (weights, inputs) have `backOp == nullptr`. Intermediate tensors point back at their creating operation.
+
+```cpp
+// Forward pass — implicitly builds the graph
+Tensor z = x * w;    // z.backOp = MulOperation(&x, &w)
+Tensor loss = mse(z, target);
+
+// Backward pass — walks the graph
+loss.backward(1.0f);
+// Now x.grad and w.grad are filled
+```
+
+## Chain rule
+
+The chain rule is the only math you need. If $z = f(y)$ and $y = g(x)$, then:
+
+$$\frac{\partial z}{\partial x} = \frac{\partial z}{\partial y} \cdot \frac{\partial y}{\partial x}$$
+
+In a computation graph, each operation only needs to know its **local gradient** — how its output changes with respect to its inputs, given incoming gradient from downstream. It multiplies the incoming gradient by its local Jacobian and passes the result upstream.
+
+For multiplication $z = x \cdot w$:
+- $\frac{\partial z}{\partial x} = w$, so $\text{grad}\_x = \text{grad}\_z \cdot w$
+- $\frac{\partial z}{\partial w} = x$, so $\text{grad}\_w = \text{grad}\_z \cdot x$
+
+## Topological sort
+
+Naively walking `backOp` pointers via recursion is wrong when nodes are shared — a tensor used in two places would get its gradient updated twice, out of order.
+
+The correct approach: build a topological ordering of all nodes first, then propagate gradients in reverse topological order. This ensures every node has accumulated all incoming gradients before it propagates backward.
+
+```cpp
+// Build topo order via DFS
+std::vector<Tensor*> topo;
+std::unordered_set<Tensor*> visited;
+std::function<void(Tensor*)> build = [&](Tensor* t) {
+    if (!visited.insert(t).second) return;
+    if (t->backOp)
+        for (Tensor* inp : t->backOp->inputs()) build(inp);
+    topo.push_back(t);
+};
+build(this);
+
+// Propagate in reverse order
+this->grad = {1.0f};  // seed gradient
+for (int i = (int)topo.size() - 1; i >= 0; --i)
+    if (topo[i]->backOp)
+        topo[i]->backOp->backward(topo[i]->grad);
+```
+
+import AutodiffDiagram from '../../diagrams/AutodiffDiagram.astro';
+
+<AutodiffDiagram />
+
+## accumulate_grad vs backward
+
+Each operation's `backward()` method calls `accumulate_grad()` on its inputs — not `backward()`. This separates gradient accumulation from propagation. The topo-sort loop drives propagation; each op only needs to know how to compute its local contribution.
+
+```cpp
+// MulOperation::backward (called with grad_z)
+void backward(const std::vector<float>& grad_z) override {
+    // grad_x += grad_z * w_data
+    t1->accumulate_grad(elementwise_mul(grad_z, t2->data));
+    // grad_w += grad_z * x_data
+    t2->accumulate_grad(elementwise_mul(grad_z, t1->data));
+}
+```
+
+<div class="callout">
+The topo-sort backward pass was the single most important correctness fix in this framework. Without it, shared nodes (e.g. a weight used in multiple layers) accumulate gradients in the wrong order, producing silently wrong training.
+</div>
