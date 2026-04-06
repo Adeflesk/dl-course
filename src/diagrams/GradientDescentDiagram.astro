@@ -1,0 +1,16 @@
+---
+// src/diagrams/GradientDescentDiagram.astro
+---
+
+<div class="diagram-container">
+  <p style="color: var(--text-dim); font-size: 0.8rem; margin-bottom: 0.75rem; font-family: var(--font-mono);">
+    SGD on a 1D loss surface (lr=0.3). Click to step manually.
+  </p>
+  <canvas id="gradient-descent-canvas" style="cursor: pointer;"></canvas>
+</div>
+
+<script>
+  import { initGradientDescentDiagram } from './gradient-descent-canvas.js';
+  const canvas = document.getElementById('gradient-descent-canvas') as HTMLCanvasElement;
+  initGradientDescentDiagram(canvas);
+</script>

@@ -4,4 +4,72 @@ chapter: 3
 description: "Loss surfaces, SGD, learning rate, and Adam with bias correction"
 ---
 
-Content coming soon.
+Training a neural network means finding weights that minimize a loss function. The loss is a scalar that measures how wrong the model is. We want to move the weights in the direction that decreases it — that's gradient descent.
+
+## The loss surface
+
+Think of the loss as a surface in weight space. If your network has $n$ parameters, the surface lives in $n+1$ dimensions (parameters + loss value). You're standing at some point on this surface and want to find a valley.
+
+The **gradient** of the loss with respect to the weights points uphill — toward higher loss. To descend, move in the opposite direction.
+
+## Stochastic Gradient Descent
+
+$$w \leftarrow w - \eta \cdot \nabla_w L$$
+
+where $\eta$ is the **learning rate** — how big a step to take. Too large: overshoot the valley, loss oscillates or diverges. Too small: training is slow.
+
+In practice, you compute the gradient on a **mini-batch** (a random subset of training examples) rather than the full dataset. This is the "stochastic" part — the gradient is noisy but cheap to compute.
+
+```cpp
+// SGD optimizer in tensorflowccp
+void SGD::step() {
+    for (Tensor* p : params) {
+        for (size_t i = 0; i < p->data.size(); ++i)
+            p->data[i] -= lr * p->grad[i];
+    }
+}
+```
+
+## Why vanilla SGD struggles
+
+Vanilla SGD treats all parameters the same: same step size regardless of gradient history. Problems:
+
+- **Sparse gradients**: parameters that rarely receive gradient updates learn slowly.
+- **Saddle points**: gradient is near-zero but the point isn't a minimum. SGD stalls.
+- **Oscillation**: in ravine-shaped loss surfaces, SGD oscillates across the narrow dimension and creeps along the long dimension.
+
+## Adam
+
+Adam (Adaptive Moment Estimation) maintains running estimates of the first moment (mean of gradient) and second moment (mean of squared gradient) for each parameter, and uses them to adaptively scale the learning rate per parameter.
+
+$$m_t = \beta_1 m_{t-1} + (1 - \beta_1) g_t$$
+$$v_t = \beta_2 v_{t-1} + (1 - \beta_2) g_t^2$$
+
+Then apply **bias correction** (important at the start of training when $m$ and $v$ are near zero):
+
+$$\hat{m}_t = \frac{m_t}{1 - \beta_1^t}, \quad \hat{v}_t = \frac{v_t}{1 - \beta_2^t}$$
+
+Update rule:
+
+$$w \leftarrow w - \frac{\eta}{\sqrt{\hat{v}_t} + \epsilon} \cdot \hat{m}_t$$
+
+Default hyperparameters ($\beta_1 = 0.9$, $\beta_2 = 0.999$, $\epsilon = 10^{-8}$) work well for most problems. The MNIST capstone uses Adam with $\eta = 0.001$.
+
+```cpp
+// Adam step (simplified) — from tensorflowccp/src/optim/Adam.cpp
+for (size_t i = 0; i < p->data.size(); ++i) {
+    m[pi][i] = beta1 * m[pi][i] + (1 - beta1) * g;
+    v[pi][i] = beta2 * v[pi][i] + (1 - beta2) * g * g;
+    float mhat = m[pi][i] / (1 - pow(beta1, t));
+    float vhat = v[pi][i] / (1 - pow(beta2, t));
+    p->data[i] -= lr * mhat / (sqrt(vhat) + eps);
+}
+```
+
+import GradientDescentDiagram from '../../diagrams/GradientDescentDiagram.astro';
+
+<GradientDescentDiagram />
+
+<div class="callout">
+The learning rate is the most sensitive hyperparameter. A factor of 10× too large will break training; a factor of 10× too small will converge, just slowly. Start with 0.001 for Adam and tune from there.
+</div>
