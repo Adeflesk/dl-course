@@ -1,0 +1,16 @@
+---
+// src/diagrams/MNISTLossCurve.astro
+---
+
+<div class="diagram-container">
+  <p style="color: var(--text-dim); font-size: 0.8rem; margin-bottom: 0.75rem; font-family: var(--font-mono);">
+    Training loss and test accuracy over 10 epochs. Full 60k dataset, batch size 100, Adam lr=0.001.
+  </p>
+  <canvas id="mnist-loss-canvas"></canvas>
+</div>
+
+<script>
+  import { initMNISTLossCurve } from './mnist-loss-canvas.js';
+  const canvas = document.getElementById('mnist-loss-canvas');
+  initMNISTLossCurve(canvas);
+</script>

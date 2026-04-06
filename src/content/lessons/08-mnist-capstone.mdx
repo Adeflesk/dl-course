@@ -4,6 +4,8 @@ chapter: 8
 description: "Full CNN from scratch: architecture, training, 98.5% test accuracy"
 ---
 
+import MNISTLossCurve from '../../diagrams/MNISTLossCurve.astro';
+
 MNIST is 60,000 handwritten digit images (28×28 pixels, 10 classes). It's the canonical benchmark for a working deep learning implementation. The goal here is 97%+ test accuracy using only the components built in this course.
 
 ## Architecture
@@ -45,9 +47,7 @@ nn::Sequential model({
 
 ## Results
 
-{/* MNISTLossCurve diagram — uncomment when Task 20 creates the component */}
-{/* import MNISTLossCurve from '../../diagrams/MNISTLossCurve.astro'; */}
-{/* <MNISTLossCurve /> */}
+<MNISTLossCurve />
 
 Epoch-by-epoch results from the actual training run:
 
