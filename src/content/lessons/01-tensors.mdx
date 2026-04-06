@@ -4,4 +4,50 @@ chapter: 1
 description: "N-dimensional arrays with flat storage, shape, and row-major indexing"
 ---
 
-Content coming soon.
+A tensor is an N-dimensional array. A scalar is a 0-D tensor. A vector is 1-D. A matrix is 2-D. An image batch is 4-D: `[batch, channels, height, width]`. The word sounds exotic but the idea is simple: a rectangular block of numbers with a shape.
+
+## Shape and flat storage
+
+Every tensor has a **shape** — a list of dimension sizes. A tensor with shape `[3, 4]` has 3 rows and 4 columns, for 12 total elements.
+
+The data lives in a single flat `std::vector<float>`, laid out in **row-major order**: row 0 first, then row 1, and so on. To access element `[i, j]` in a `[rows, cols]` tensor:
+
+$$\text{index}(i, j) = i \cdot \text{cols} + j$$
+
+For a 4-D tensor with shape $[N, C, H, W]$, the element at `[n, c, h, w]` is at:
+
+$$\text{index} = n \cdot CHW + c \cdot HW + h \cdot W + w$$
+
+This generalizes: each dimension's stride is the product of all dimensions to its right.
+
+## The Tensor class
+
+In tensorflowccp, `Tensor` is the core type. It holds shape, flat data, flat gradient (same size as data), and a pointer to the operation that created it:
+
+```cpp
+struct Tensor {
+    std::vector<int>   shape;   // e.g. {32, 1, 28, 28}
+    std::vector<float> data;    // flat, row-major
+    std::vector<float> grad;    // same size as data, zeroed initially
+    std::shared_ptr<Operation> backOp; // null for leaf tensors
+};
+```
+
+Leaf tensors (weights, inputs) have `backOp == nullptr`. Every operation creates a new output tensor and sets `backOp` to point back at itself, building the computation graph.
+
+## Element-wise operations and broadcasting
+
+Operations like `+`, `*`, `-`, `/` work element-wise. When shapes don't match exactly, **broadcasting** extends smaller tensors to match larger ones — the same rules as NumPy:
+
+- A shape `[1, 4]` bias broadcasts to `[32, 4]` when added to a `[32, 4]` output.
+- A scalar broadcasts to any shape.
+
+Broadcasting never copies data — it maps indices on the fly during the operation.
+
+## Why flat storage?
+
+Cache efficiency. Modern CPUs are dramatically faster when memory access is sequential. A flat `std::vector` means iterating over a tensor walks through contiguous memory. Multidimensional indexing is just arithmetic on top of that contiguous block.
+
+<div class="callout">
+Every operation in this framework — matmul, conv2d, softmax — ultimately reads and writes flat float arrays. The shape is metadata; the data is always a flat vector.
+</div>
