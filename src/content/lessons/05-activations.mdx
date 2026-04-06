@@ -4,4 +4,56 @@ chapter: 5
 description: "ReLU, Sigmoid, Tanh — why nonlinearity is necessary"
 ---
 
-Content coming soon.
+## Why nonlinearity matters
+
+A stack of linear layers without activations is just one big linear layer:
+
+$$W_2(W_1 x + b_1) + b_2 = (W_2 W_1)x + (W_2 b_1 + b_2)$$
+
+No matter how many layers you stack, the result is a single linear transform. Activation functions break this — they make it possible for the network to represent arbitrary nonlinear functions.
+
+## ReLU
+
+$$\text{ReLU}(x) = \max(0, x)$$
+
+The simplest useful activation. Gradient is 1 for positive inputs, 0 for negative. This sparsity (many neurons output exactly 0) turns out to be computationally and representationally efficient.
+
+The "dying ReLU" problem: neurons with negative pre-activations never fire, receive zero gradient, and never recover. Mitigated by good initialization and batch normalization.
+
+```cpp
+// reluOperation — backward
+void backward(const std::vector<float>& grad) override {
+    std::vector<float> dx(grad.size());
+    for (size_t i = 0; i < grad.size(); ++i)
+        dx[i] = (t1->data[i] > 0.0f) ? grad[i] : 0.0f;
+    t1->accumulate_grad(dx);
+}
+```
+
+## Sigmoid
+
+$$\sigma(x) = \frac{1}{1 + e^{-x}}$$
+
+Squashes any input to $(0, 1)$. Used in binary classification output layers (`BCELoss`). Gradient: $\sigma'(x) = \sigma(x)(1 - \sigma(x))$.
+
+Problem: for large $|x|$, gradient ≈ 0 — **vanishing gradient**. Sigmoid is rarely used in hidden layers anymore.
+
+## Tanh
+
+$$\tanh(x) = \frac{e^x - e^{-x}}{e^x + e^{-x}}$$
+
+Zero-centered (unlike Sigmoid), squashes to $(-1, 1)$. Gradient: $1 - \tanh^2(x)$. Still suffers from vanishing gradient at saturation but less severely than Sigmoid.
+
+Tanh is used in the XOR demo (hidden layer) because it works well with small networks on small data.
+
+## Softmax
+
+For multi-class classification (e.g., 10 MNIST classes), the output layer uses softmax:
+
+$$\text{softmax}(x)_i = \frac{e^{x_i - \max(x)}}{\sum_j e^{x_j - \max(x)}}$$
+
+The $\max(x)$ subtraction is numerical stabilization — it prevents overflow when $x_i$ is large. Softmax is fused with cross-entropy loss in this framework (they share a backward pass that cancels neatly).
+
+<div class="callout">
+In practice: use ReLU in hidden layers. Use Sigmoid only for binary output, Softmax (via CrossEntropyLoss) for multi-class output. Tanh is a reasonable choice for small networks where ReLU dying is a concern.
+</div>
