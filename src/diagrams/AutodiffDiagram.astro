@@ -1,0 +1,17 @@
+---
+// src/diagrams/AutodiffDiagram.astro
+---
+
+<div class="diagram-container">
+  <p style="color: var(--text-dim); font-size: 0.8rem; margin-bottom: 0.75rem; font-family: var(--font-mono);">
+    Computation graph — gradient flows backward from loss to leaves.
+    Click to step manually.
+  </p>
+  <canvas id="autodiff-canvas" style="cursor: pointer;"></canvas>
+</div>
+
+<script>
+  import { initAutodiffDiagram } from './autodiff-canvas.js';
+  const canvas = document.getElementById('autodiff-canvas') as HTMLCanvasElement;
+  initAutodiffDiagram(canvas);
+</script>
