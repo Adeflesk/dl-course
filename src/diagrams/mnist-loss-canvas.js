@@ -22,7 +22,7 @@ export function initMNISTLossCurve(canvas) {
 
   function toX(epoch) { return PAD.l + (epoch / 9) * PW; }
   function toLossY(loss) { return PAD.t + (1 - (loss / 0.30)) * PH; }
-  function toAccY(acc)  { return PAD.t + (1 - ((acc - 95) / 5)) * PH; }
+  function toAccY(acc)  { return PAD.t + (1 - ((acc - 95) / 4)) * PH; }
 
   ctx.clearRect(0, 0, W, H);
 
