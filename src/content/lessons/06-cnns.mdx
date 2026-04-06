@@ -20,7 +20,7 @@ $$\text{output size} = 28 - 5 + 1 = 24$$
 The output is 24×24. With 8 kernels, the output is 8×24×24 — 8 feature maps, one per kernel.
 
 ```cpp
-// From src/ops/conv2d.cpp — forward pass (simplified)
+// From src/ops/conv2d.cpp — forward pass (pseudocode; actual uses flat-index arithmetic)
 for (int n = 0; n < N; ++n)
   for (int oc = 0; oc < OC; ++oc)
     for (int oh = 0; oh < OH; ++oh)
