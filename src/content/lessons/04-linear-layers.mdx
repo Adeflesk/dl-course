@@ -4,4 +4,66 @@ chapter: 4
 description: "Matrix multiplication, bias, Xavier initialization, and XOR training"
 ---
 
-Content coming soon.
+## What a linear layer does
+
+A linear layer maps an input vector to an output vector via a learned weight matrix and bias:
+
+$$y = xW + b$$
+
+where $x$ is $[N, \text{in}]$, $W$ is $[\text{in}, \text{out}]$, $b$ is $[1, \text{out}]$, and $y$ is $[N, \text{out}]$. The weight matrix $W$ contains every connection between input and output neurons.
+
+## Matrix multiplication
+
+The output $y_{ij} = \sum_k x_{ik} W_{kj}$ — each output element is a dot product between a row of $x$ and a column of $W$. This is `matmul` in the framework.
+
+The gradient with respect to $W$ is:
+
+$$\frac{\partial L}{\partial W} = x^T \cdot \frac{\partial L}{\partial y}$$
+
+and with respect to $x$:
+
+$$\frac{\partial L}{\partial x} = \frac{\partial L}{\partial y} \cdot W^T$$
+
+```cpp
+// From src/ops/matmul.cpp — backward pass
+void MatmulOperation::backward(const std::vector<float>& grad_out) override {
+    // grad_W = X^T @ grad_out
+    t1->accumulate_grad(matmul_transpose_a(t1->data, grad_out, ...));
+    // grad_X = grad_out @ W^T
+    t2->accumulate_grad(matmul_transpose_b(grad_out, t2->data, ...));
+}
+```
+
+## Xavier initialization
+
+Weights can't all start at zero (all neurons would learn the same thing) and can't be too large (activations explode through layers). Xavier initialization sets the standard deviation based on the layer size:
+
+$$W \sim \mathcal{U}\left(-\sqrt{\frac{6}{\text{in} + \text{out}}}, \sqrt{\frac{6}{\text{in} + \text{out}}}\right)$$
+
+This keeps the variance of activations roughly constant across layers at initialization.
+
+```cpp
+// nn/Linear.h — Xavier initialization
+float limit = std::sqrt(6.0f / (in_features + out_features));
+std::uniform_real_distribution<float> dist(-limit, limit);
+for (auto& w : weight.data) w = dist(gen);
+```
+
+## XOR: the simplest non-trivial network
+
+XOR is not linearly separable — no single line separates (0,0),(1,1) from (0,1),(1,0). You need at least one hidden layer to solve it. This makes it the canonical test for a working backprop implementation.
+
+```cpp
+// main.cpp — XOR training with 2-layer network
+nn::Sequential model({
+    std::make_shared<nn::Linear>(2, 4),
+    std::make_shared<nn::Tanh>(),
+    std::make_shared<nn::Linear>(4, 1),
+    std::make_shared<nn::Sigmoid>()
+});
+// After ~2000 epochs with Adam lr=0.01: loss < 0.01, XOR solved
+```
+
+<div class="callout">
+If your backprop is wrong, XOR will not converge — or will converge to 0.5 (the network learns a constant). It's the fastest smoke test for a new autodiff implementation.
+</div>
