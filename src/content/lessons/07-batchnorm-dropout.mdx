@@ -4,4 +4,61 @@ chapter: 7
 description: "Batch normalization, inverted dropout, and train/eval mode"
 ---
 
-Content coming soon.
+## The problem: internal covariate shift
+
+As training proceeds, the distribution of activations at each layer shifts because the weights of preceding layers change. The next layer must constantly re-adapt to this shifting distribution. This is **internal covariate shift** — it slows training and makes it sensitive to initialization.
+
+## Batch Normalization
+
+BatchNorm normalizes activations across the batch dimension at each layer, then applies learned scale ($\gamma$) and shift ($\beta$):
+
+$$\mu = \frac{1}{N}\sum_{i=1}^N x_i, \quad \sigma^2 = \frac{1}{N}\sum_{i=1}^N (x_i - \mu)^2$$
+
+$$\hat{x}_i = \frac{x_i - \mu}{\sqrt{\sigma^2 + \epsilon}}, \quad y_i = \gamma \hat{x}_i + \beta$$
+
+During training, mean and variance are computed from the mini-batch. During evaluation, stored **running statistics** are used instead, giving deterministic output.
+
+```cpp
+// nn/BatchNorm.h — training mode
+std::vector<float>& rm = running_mean;  // exponential moving average
+std::vector<float>& rv = running_var;
+for (int c = 0; c < C; ++c) {
+    rm[c] = (1 - momentum) * rm[c] + momentum * batch_mean[c];
+    rv[c] = (1 - momentum) * rv[c] + momentum * batch_var[c];
+}
+```
+
+## Train / eval mode
+
+Modules with different training/evaluation behavior expose `train()` and `eval()` methods. `Sequential` propagates the mode recursively:
+
+```cpp
+// Always call model.eval() before inference
+model.eval();
+float acc = compute_accuracy(model, test_images, test_labels);
+model.train();  // back to training mode
+```
+
+Forgetting `model.eval()` before inference means BatchNorm uses batch statistics from the inference batch (small, noisy) instead of the accumulated running statistics. Dropout would also randomly zero outputs during inference.
+
+## Dropout
+
+Dropout randomly zeroes each activation with probability $p$ during training, then scales surviving activations by $\frac{1}{1-p}$ to keep the expected value unchanged:
+
+$$y_i = \begin{cases} \frac{x_i}{1-p} & \text{with probability } 1-p \\ 0 & \text{with probability } p \end{cases}$$
+
+This is **inverted dropout** — the scaling happens during training, so at eval time the pass-through is an exact identity (no scaling needed).
+
+```cpp
+// nn/Dropout.h — training mode
+float scale = 1.0f / (1.0f - p);
+std::bernoulli_distribution dist(1.0f - p);
+for (auto& m : mask)
+    m = dist(gen) ? scale : 0.0f;
+```
+
+Why does this work? Each forward pass trains a different subset of the network. The network can't rely on any single neuron, forcing it to learn redundant representations — a form of regularization.
+
+<div class="callout">
+In the MNIST capstone: BatchNorm after Flatten stabilizes the large 1152-dimensional representation. Dropout(0.3) before the final linear layer prevents overfitting on the training set. Together they push test accuracy from 93.5% to 98.5%.
+</div>
