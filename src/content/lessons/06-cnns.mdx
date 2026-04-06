@@ -4,4 +4,67 @@ chapter: 6
 description: "Convolution, pooling, feature maps, and spatial hierarchies"
 ---
 
-Content coming soon.
+## Why not just use linear layers on images?
+
+A 28×28 grayscale image is 784 numbers. A linear layer from 784 → 128 has 784×128 = 100,352 parameters — for just one layer. Worse: a linear layer treats every pixel independently, ignoring spatial structure. Whether a feature appears at position (3,5) or (14,22) looks completely different to a linear layer.
+
+Convolutional layers fix both problems: fewer parameters via **weight sharing**, and spatial invariance via **sliding kernels**.
+
+## Convolution
+
+A **kernel** (also called a filter) is a small weight matrix — typically 3×3 or 5×5. It slides over the input image, computing a dot product at each position. The result is a **feature map**: the activation of that kernel at every spatial location.
+
+For a 5×5 kernel on a 28×28 input with no padding:
+$$\text{output size} = 28 - 5 + 1 = 24$$
+
+The output is 24×24. With 8 kernels, the output is 8×24×24 — 8 feature maps, one per kernel.
+
+```cpp
+// From src/ops/conv2d.cpp — forward pass (simplified)
+for (int n = 0; n < N; ++n)
+  for (int oc = 0; oc < OC; ++oc)
+    for (int oh = 0; oh < OH; ++oh)
+      for (int ow = 0; ow < OW; ++ow) {
+        float sum = bias[oc];
+        for (int ic = 0; ic < IC; ++ic)
+          for (int kh = 0; kh < KH; ++kh)
+            for (int kw = 0; kw < KW; ++kw)
+              sum += input[n,ic,oh+kh,ow+kw] * kernel[oc,ic,kh,kw];
+        output[n,oc,oh,ow] = sum;
+      }
+```
+
+**Weight sharing**: all 576 positions in a 24×24 feature map use the same 25 kernel weights. This is the key efficiency — 8×1×5×5 + 8 bias = 208 parameters instead of millions.
+
+## Pooling
+
+After convolution, we typically subsample with a pooling layer. **MaxPool2d(2)** takes the maximum value in each 2×2 window, halving both spatial dimensions:
+
+$$28\times28 \xrightarrow{\text{Conv2d(1,8,5)}} 8\times24\times24 \xrightarrow{\text{MaxPool(2)}} 8\times12\times12$$
+
+Pooling reduces computation and adds mild translation invariance — a feature shifted by 1 pixel still activates the same max.
+
+## Hierarchical features
+
+The power of CNNs comes from stacking layers. Early layers learn low-level features (edges, corners). Later layers combine these into higher-level features (shapes, textures, eventually "digit 7"). This hierarchy emerges from training — you don't specify it.
+
+## Flatten
+
+Before a linear classification head, the 3D feature maps must be flattened to a 1D vector. After MaxPool:
+
+$$8 \times 12 \times 12 = 1152 \text{ features per image}$$
+
+The `Flatten` layer reshapes `[batch, 8, 12, 12]` → `[batch, 1152]`.
+
+```cpp
+// nn/Flatten.h
+Tensor forward(const Tensor& input) override {
+    int batch = input.shape[0];
+    int flat  = input.data.size() / batch;
+    return Tensor({batch, flat}, input.data);
+}
+```
+
+<div class="callout">
+The MNIST capstone architecture is: Conv2d(1,8,5) → ReLU → MaxPool2d(2) → Flatten → BatchNorm(1152) → Linear(1152,64) → Dropout(0.3) → Linear(64,10). Every component in this chain is built in this framework.
+</div>
