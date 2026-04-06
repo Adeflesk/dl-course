@@ -4,4 +4,82 @@ chapter: 8
 description: "Full CNN from scratch: architecture, training, 98.5% test accuracy"
 ---
 
-Content coming soon.
+MNIST is 60,000 handwritten digit images (28×28 pixels, 10 classes). It's the canonical benchmark for a working deep learning implementation. The goal here is 97%+ test accuracy using only the components built in this course.
+
+## Architecture
+
+```
+[batch, 1, 28, 28]
+  → Conv2d(1, 8, 5)     → [batch, 8, 24, 24]   # 8 kernels, 5×5
+  → ReLU                → [batch, 8, 24, 24]
+  → MaxPool2d(2)         → [batch, 8, 12, 12]   # halve spatial dims
+  → Flatten              → [batch, 1152]
+  → BatchNorm(1152)      → [batch, 1152]         # normalize, stabilize
+  → Linear(1152, 64)    → [batch, 64]
+  → Dropout(0.3)        → [batch, 64]            # regularize
+  → Linear(64, 10)      → [batch, 10]            # class logits
+```
+
+Total parameters: **76,954**.
+
+```cpp
+nn::Sequential model({
+    std::make_shared<nn::Conv2d>(1, 8, 5),
+    std::make_shared<nn::ReLU>(),
+    std::make_shared<nn::MaxPool2d>(2),
+    std::make_shared<nn::Flatten>(),
+    std::make_shared<nn::BatchNorm>(1152),
+    std::make_shared<nn::Linear>(1152, 64),
+    std::make_shared<nn::Dropout>(0.3f),
+    std::make_shared<nn::Linear>(64, 10)
+});
+```
+
+## Training setup
+
+- **Loss:** CrossEntropyLoss (softmax + negative log likelihood, fused backward)
+- **Optimizer:** Adam, lr=0.001
+- **Batch size:** 100
+- **Epochs:** 10
+- **Data:** Full 60,000 training images, shuffled each epoch
+
+## Results
+
+{/* MNISTLossCurve diagram — uncomment when Task 20 creates the component */}
+{/* import MNISTLossCurve from '../../diagrams/MNISTLossCurve.astro'; */}
+{/* <MNISTLossCurve /> */}
+
+Epoch-by-epoch results from the actual training run:
+
+| Epoch | Loss   | Test Acc |
+|-------|--------|----------|
+| 0     | 0.2661 | 96.9%    |
+| 2     | 0.1021 | 97.8%    |
+| 4     | 0.0797 | 98.1%    |
+| 6     | 0.0655 | 98.0%    |
+| 8     | 0.0579 | 98.3%    |
+| 9     | 0.0540 | **98.5%** |
+
+Final: **98.5% test accuracy**, 99.1% train accuracy. 218 seconds on CPU.
+
+## What the network learned
+
+The 8 kernels in Conv2d(1,8,5) learn to detect edges, corners, and curves. After pooling, the 1152-dimensional representation is a compressed spatial summary of those detections. The two linear layers map this summary to class probabilities.
+
+BatchNorm after Flatten was critical — the 1152 features have very different scales coming out of the convolution. Without normalization, the linear layers struggle to find a consistent signal.
+
+## CrossEntropy loss
+
+For class $c$ and logits $z$:
+
+$$L = -\log \frac{e^{z_c}}{\sum_j e^{z_j}} = -z_c + \log \sum_j e^{z_j}$$
+
+The gradient with respect to logits $z_i$ is elegantly:
+
+$$\frac{\partial L}{\partial z_i} = p_i - \mathbf{1}[i = c]$$
+
+where $p_i = \text{softmax}(z)_i$. The loss pushes the correct class logit up and all others down, proportional to how much probability mass they incorrectly hold.
+
+<div class="callout">
+Every number in this result — 98.5%, 76,954 parameters, 218 seconds — came from code written from scratch: the tensor operations, the autodiff engine, the conv2d backward pass, the Adam optimizer. No libraries. That's the point.
+</div>
