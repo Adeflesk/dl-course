@@ -103,26 +103,28 @@ export function initGradientDescentDiagram(canvas) {
 
   draw();
 
-  let timer = setInterval(() => {
-    if (frame < history.length - 1) {
-      frame++;
-      draw();
-    } else {
-      clearInterval(timer);
-      setTimeout(() => {
-        frame = 0;
+  function startLoop() {
+    let timer = setInterval(() => {
+      if (frame < history.length - 1) {
+        frame++;
         draw();
-        timer = setInterval(() => {
-          if (frame < history.length - 1) { frame++; draw(); }
-          else { clearInterval(timer); }
-        }, 400);
-      }, 2500);
-    }
-  }, 400);
+      } else {
+        clearInterval(timer);
+        setTimeout(() => {
+          frame = 0;
+          draw();
+          startLoop();
+        }, 2500);
+      }
+    }, 400);
 
-  canvas.addEventListener('click', () => {
-    clearInterval(timer);
-    frame = (frame + 1) % history.length;
-    draw();
-  });
+    canvas.onclick = () => {
+      clearInterval(timer);
+      frame = (frame + 1) % history.length;
+      draw();
+      startLoop();
+    };
+  }
+
+  startLoop();
 }

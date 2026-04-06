@@ -58,6 +58,7 @@ Default hyperparameters ($\beta_1 = 0.9$, $\beta_2 = 0.999$, $\epsilon = 10^{-8}
 ```cpp
 // Adam step (simplified) — from tensorflowccp/src/optim/Adam.cpp
 for (size_t i = 0; i < p->data.size(); ++i) {
+    const float g = p->grad[i];
     m[pi][i] = beta1 * m[pi][i] + (1 - beta1) * g;
     v[pi][i] = beta2 * v[pi][i] + (1 - beta2) * g * g;
     float mhat = m[pi][i] / (1 - pow(beta1, t));
