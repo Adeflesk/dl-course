@@ -18,11 +18,13 @@ MNIST is 60,000 handwritten digit images (28×28 pixels, 10 classes). It's the c
   → Flatten              → [batch, 1152]
   → BatchNorm(1152)      → [batch, 1152]         # normalize, stabilize
   → Linear(1152, 64)    → [batch, 64]
-  → Dropout(0.3)        → [batch, 64]            # regularize
+  → Dropout(0.3)        → [batch, 64]            # regularize (no ReLU — see note below)
   → Linear(64, 10)      → [batch, 10]            # class logits
 ```
 
 Total parameters: **76,954**.
+
+**Note on the two linear layers:** There is no activation function between `Linear(1152, 64)` and `Linear(64, 10)`. Strictly, during inference (Dropout is identity), these two layers collapse into a single linear map — the 64-dimensional intermediate representation adds no nonlinear capacity. In standard practice you would insert a `ReLU` between them. Here it was omitted deliberately to keep the architecture minimal, and the strong nonlinear features already extracted by the CNN are sufficient for 98.5% accuracy. Adding `nn::ReLU()` before the Dropout would be more correct and likely improve results further.
 
 ```cpp
 nn::Sequential model({
@@ -72,7 +74,7 @@ BatchNorm after Flatten was critical — the 1152 features have very different s
 
 For class $c$ and logits $z$:
 
-$$L = -\log \frac{e^{z_c}}{\sum_j e^{z_j}} = -z_c + \log \sum_j e^{z_j}$$
+$$L = -\log \frac{e^{z_c}}{\sum_j e^{z_j}} = -z_c + \log \left(\sum_j e^{z_j}\right)$$
 
 The gradient with respect to logits $z_i$ is elegantly:
 

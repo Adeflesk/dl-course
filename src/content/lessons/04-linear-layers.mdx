@@ -27,10 +27,10 @@ $$\frac{\partial L}{\partial x} = \frac{\partial L}{\partial y} \cdot W^T$$
 ```cpp
 // From src/ops/matmul.cpp — backward pass
 void MatmulOperation::backward(const std::vector<float>& grad_out) override {
-    // grad_X = grad_out @ W^T  (t1 is X)
-    t1->accumulate_grad(matmul_transpose_a(t1->data, grad_out, ...));
-    // grad_W = X^T @ grad_out  (t2 is W)
-    t2->accumulate_grad(matmul_transpose_b(grad_out, t2->data, ...));
+    // grad_X = grad_out @ W^T  (t1 is X, t2 is W)
+    t1->accumulate_grad(matmul_transpose_b(grad_out, t2->data, ...));
+    // grad_W = X^T @ grad_out
+    t2->accumulate_grad(matmul_transpose_a(t1->data, grad_out, ...));
 }
 ```
 
