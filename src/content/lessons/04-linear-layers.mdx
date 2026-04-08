@@ -24,13 +24,30 @@ and with respect to $x$:
 
 $$\frac{\partial L}{\partial x} = \frac{\partial L}{\partial y} \cdot W^T$$
 
+In flat-index terms, `gradX[i,k]` accumulates `grad[i,j] * W[k,j]` over all j, and `gradW[k,j]` accumulates `X[i,k] * grad[i,j]` over all batch rows i — exactly what the loops below compute.
+
 ```cpp
 // From src/ops/matmul.cpp — backward pass
-void MatmulOperation::backward(const std::vector<float>& grad_out) override {
-    // grad_X = grad_out @ W^T  (t1 is X, t2 is W)
-    t1->accumulate_grad(matmul_transpose_b(grad_out, t2->data, ...));
-    // grad_W = X^T @ grad_out
-    t2->accumulate_grad(matmul_transpose_a(t1->data, grad_out, ...));
+// X is [M, K], W is [K, N], grad is [M, N]
+void MatmulOperation::backward(const std::vector<float>& grad) {
+    int M = t1->shape[0], K = t1->shape[1], N = t2->shape[1];
+    std::vector<float> gradX(M * K, 0.0f);  // grad w.r.t. X
+    std::vector<float> gradW(K * N, 0.0f);  // grad w.r.t. W
+
+    // gradX = grad @ W^T: row i of gradX is dot of grad row i with each col of W^T
+    for (int i = 0; i < M; ++i)
+        for (int k = 0; k < K; ++k)
+            for (int j = 0; j < N; ++j)
+                gradX[i*K + k] += grad[i*N + j] * t2->data[k*N + j];
+
+    // gradW = X^T @ grad: entry (k,j) of gradW sums over all batch rows
+    for (int k = 0; k < K; ++k)
+        for (int j = 0; j < N; ++j)
+            for (int i = 0; i < M; ++i)
+                gradW[k*N + j] += t1->data[i*K + k] * grad[i*N + j];
+
+    t1->accumulate_grad(gradX);
+    t2->accumulate_grad(gradW);
 }
 ```
 
