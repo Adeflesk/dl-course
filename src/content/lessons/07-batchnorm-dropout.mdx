@@ -28,6 +28,59 @@ for (int c = 0; c < C; ++c) {
 }
 ```
 
+## BatchNorm backward
+
+The backward pass through normalization is the subtlest chain rule in this framework. Three quantities depend on the batch mean and variance, so gradients flow through three paths back to the input.
+
+Starting from $\frac{\partial L}{\partial \hat{x}_i}$ (gradient w.r.t. normalized input), the chain rule gives:
+
+$$\frac{\partial L}{\partial \sigma^2} = \sum_i \frac{\partial L}{\partial \hat{x}_i} \cdot (x_i - \mu) \cdot \left(-\frac{1}{2}\right)(\sigma^2 + \epsilon)^{-3/2}$$
+
+$$\frac{\partial L}{\partial \mu} = \sum_i \frac{\partial L}{\partial \hat{x}_i} \cdot (-\frac{1}{\sigma}) + \frac{\partial L}{\partial \sigma^2} \cdot \frac{-2}{N}\sum_i(x_i - \mu)$$
+
+$$\frac{\partial L}{\partial x_i} = \frac{\partial L}{\partial \hat{x}_i} \cdot \frac{1}{\sigma} + \frac{\partial L}{\partial \sigma^2} \cdot \frac{2(x_i - \mu)}{N} + \frac{\partial L}{\partial \mu} \cdot \frac{1}{N}$$
+
+The actual implementation precomputes `inv_std` and `inv_std_cubed` once per channel to avoid redundant sqrt operations, then computes dx_hat → dvar → dmean → dx in sequence:
+
+```cpp
+// From src/ops/batchnorm.cpp — backward pass
+// Precompute per-channel inv_std and inv_std³
+for (int c = 0; c < C; ++c) {
+    float s = std::sqrt(batch_var[c] + eps);
+    inv_std[c] = 1.0f / s;
+    inv_std_cubed[c] = 1.0f / (s * s * s);
+}
+
+// dx_hat = grad * gamma;  also accumulate dgamma, dbeta
+for (int n = 0; n < N; ++n)
+    for (int c = 0; c < C; ++c) {
+        dx_hat[n*C+c] = grad[n*C+c] * gamma[c];
+        dgamma[c] += grad[n*C+c] * x_hat[n*C+c];
+        dbeta[c]  += grad[n*C+c];
+    }
+
+// dvar: sum dx_hat * (x - mean) * (-0.5) * inv_std³
+for (int n = 0; n < N; ++n)
+    for (int c = 0; c < C; ++c)
+        dvar[c] += dx_hat[n*C+c] * (x[n*C+c] - mean[c]) * (-0.5f) * inv_std_cubed[c];
+
+// dmean: two terms (direct path + path through dvar)
+for (int n = 0; n < N; ++n)
+    for (int c = 0; c < C; ++c) {
+        dmean[c] += dx_hat[n*C+c] * (-inv_std[c]);
+        dmean[c] += dvar[c] * (-2.0f / N) * (x[n*C+c] - mean[c]);
+    }
+
+// dx: three terms
+for (int n = 0; n < N; ++n)
+    for (int c = 0; c < C; ++c)
+        dx[n*C+c] = dx_hat[n*C+c] * inv_std[c]
+                  + dvar[c] * 2.0f * (x[n*C+c] - mean[c]) / N
+                  + dmean[c] / N;
+```
+
+If you implement BatchNorm and gradients go NaN, the backward pass is the first place to check — a wrong sign in the dvar term or missing the second dmean term will silently produce incorrect gradients that look plausible until training diverges.
+
 ## Train / eval mode
 
 Modules with different training/evaluation behavior expose `train()` and `eval()` methods. `Sequential` propagates the mode recursively:
