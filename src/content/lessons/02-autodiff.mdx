@@ -77,6 +77,26 @@ void backward(const std::vector<float>& grad_z) override {
 }
 ```
 
+## Broadcasting and gradient collapse
+
+When tensors with different shapes are combined, the smaller tensor is **broadcast** to match the larger one. The forward pass handles this automatically. But backward has an extra responsibility: gradients flowing back through a broadcast must be **summed** over the dimensions that were expanded.
+
+For example, a bias of shape `[1, 32]` added to activations of shape `[64, 32]` broadcasts the bias across all 64 batch rows. In the backward pass, each of the 64 gradient rows contributes to the same bias gradient — so they must be summed:
+
+```cpp
+// From src/ops/arithmetic.cpp — Add backward
+void AddOperation::backward(const std::vector<float>& grad) {
+    auto out_shape = broadcast_shape(t1->shape, t2->shape);
+    // collapse_grad_nd sums over any dimensions that were broadcast
+    this->t1->accumulate_grad(collapse_grad_nd(grad, out_shape, t1->shape));
+    this->t2->accumulate_grad(collapse_grad_nd(grad, out_shape, t2->shape));
+}
+```
+
+`collapse_grad_nd` maps each element of the output gradient back to the corresponding element in the smaller tensor's flat index and accumulates it. If shapes are identical it's a no-op (early return). If one tensor was scalar it sums everything.
+
+This matters in practice: every `+ bias` in a linear layer goes through this path. A bug here would silently give wrong bias gradients — the network would still train, just slowly, with the bias learning at the wrong rate.
+
 <div class="callout">
 The topo-sort backward pass was the single most important correctness fix in this framework. Without it, shared nodes (e.g. a weight used in multiple layers) accumulate gradients in the wrong order, producing silently wrong training.
 </div>
