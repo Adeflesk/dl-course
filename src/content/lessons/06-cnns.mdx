@@ -44,6 +44,24 @@ $$28\times28 \xrightarrow{\text{Conv2d(1,8,5)}} 8\times24\times24 \xrightarrow{\
 
 Pooling reduces computation and adds mild translation invariance — a feature shifted by 1 pixel still activates the same max.
 
+### MaxPool backward
+
+During the forward pass, each pooling window records which input position had the maximum value — this is the **argmax index**. During backward, the gradient for that output position routes entirely to the argmax input position. Every other position in the window gets zero gradient.
+
+```cpp
+// From src/ops/pool.cpp — MaxPool2d
+// Forward: store argmax flat index for each output position
+max_indices[out_flat] = max_idx;  // flat index into input
+
+// Backward: route gradient only to the max position
+std::vector<float> grad_input(N * C * H_in * W_in, 0.0f);
+for (int i = 0; i < total_out; ++i) {
+    grad_input[max_indices[i]] += grad[i];
+}
+```
+
+This is why max-pooling works well with ReLU: positions that weren't the maximum also weren't the most active — so routing zero gradient to them makes sense.
+
 ## Hierarchical features
 
 The power of CNNs comes from stacking layers. Early layers learn low-level features (edges, corners). Later layers combine these into higher-level features (shapes, textures, eventually "digit 7"). This hierarchy emerges from training — you don't specify it.
@@ -64,6 +82,8 @@ Tensor forward(const Tensor& input) override {
     return Tensor({batch, flat}, input.data);
 }
 ```
+
+Flatten's backward is the reshape in reverse — the gradient arrives as `[batch, 1152]` and passes through unchanged. The data is already contiguous so no copy is needed; the original shape is stored during forward to enable this.
 
 <div class="callout">
 The MNIST capstone architecture is: Conv2d(1,8,5) → ReLU → MaxPool2d(2) → Flatten → BatchNorm(1152) → Linear(1152,64) → Dropout(0.3) → Linear(64,10). Every component in this chain is built in this framework.

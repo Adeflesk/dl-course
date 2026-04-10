@@ -66,6 +66,30 @@ std::uniform_real_distribution<float> dist(-limit, limit);
 for (auto& w : weight.data) w = dist(gen);
 ```
 
+## Module lifetime and raw pointer storage
+
+Operations in this framework hold **raw pointers** to their input tensors. The matmul operation created by `matmul(input, weights)` stores `input*` and `weights*` internally — it needs them during the backward pass to compute gradients.
+
+This creates a C++ lifetime requirement: the tensors pointed to must outlive the operation. If a local `Tensor input` goes out of scope before `backward()` is called, the operation is holding a dangling pointer.
+
+`nn::Linear` solves this by storing copies as member variables:
+
+```cpp
+// From nn/Linear.h — storing tensors to keep them alive
+class Linear : public Module {
+    Tensor input_copy; // kept alive — matmul holds raw pointer to this
+    Tensor mm_result;  // kept alive during backward pass
+public:
+    Tensor forward(const Tensor& input) override {
+        input_copy = input;                       // copy into member
+        mm_result  = matmul(input_copy, weights); // operation points into member
+        return mm_result + bias;
+    }
+};
+```
+
+Without `input_copy`, the matmul operation's input pointer would dangle as soon as `forward()` returned. Python frameworks hide this entirely — tensor lifetimes are managed by reference counting. In C++, it's the module's responsibility. Every module in this framework (Linear, Conv2d, BatchNorm, Dropout) stores intermediate tensors as members for exactly this reason.
+
 ## XOR: the simplest non-trivial network
 
 XOR is not linearly separable — no single line separates (0,0),(1,1) from (0,1),(1,0). You need at least one hidden layer to solve it. This makes it the canonical test for a working backprop implementation.

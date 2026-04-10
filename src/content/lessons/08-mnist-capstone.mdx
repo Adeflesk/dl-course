@@ -82,6 +82,37 @@ $$\frac{\partial L}{\partial z_i} = p_i - \mathbf{1}[i = c]$$
 
 where $p_i = \text{softmax}(z)_i$. The loss pushes the correct class logit up and all others down, proportional to how much probability mass they incorrectly hold.
 
+### Why fuse softmax and cross-entropy?
+
+Computing softmax and then cross-entropy separately is numerically unstable — the log of a very small softmax probability underflows to $-\infty$. The framework fuses them: compute numerically stable log-softmax in one pass, store the softmax probabilities, produce a scalar loss — all in one operation:
+
+```cpp
+// From nn/CrossEntropyLoss.h — forward (per batch row)
+float row_max = /* max over logits, for stability */;
+float sum_exp = 0.0f;
+for (int c = 0; c < num_classes; ++c) {
+    softmax[r*C + c] = std::exp(logits[r*C + c] - row_max);
+    sum_exp += softmax[r*C + c];
+}
+for (int c = 0; c < num_classes; ++c)
+    softmax[r*C + c] /= sum_exp;              // normalize
+total_loss -= std::log(softmax[r*C + target]); // NLL
+```
+
+The backward is elegantly simple — the softmax and log derivatives cancel, leaving:
+
+```cpp
+// From nn/CrossEntropyLoss.h — backward
+// dL/dz_i = (softmax_i - 1{i == target}) / batch_size
+for (int r = 0; r < batch_size; ++r)
+    for (int c = 0; c < num_classes; ++c) {
+        float indicator = (c == targets[r]) ? 1.0f : 0.0f;
+        grad_logits[r*C + c] = (softmax[r*C + c] - indicator) * scale;
+    }
+```
+
+The correct class logit gets gradient $(p_c - 1)/N$ — push it up. All other logits get $p_i/N$ — push them down, proportional to how much probability mass they incorrectly held.
+
 <div class="callout">
 Every number in this result — 98.5%, 76,954 parameters, 218 seconds — came from code written from scratch: the tensor operations, the autodiff engine, the conv2d backward pass, the Adam optimizer. No libraries. That's the point.
 </div>
