@@ -21,7 +21,7 @@ The simplest useful activation. Gradient is 1 for positive inputs, 0 for negativ
 The "dying ReLU" problem: neurons with negative pre-activations never fire, receive zero gradient, and never recover. Mitigated by good initialization and batch normalization.
 
 ```cpp
-// reluOperation — backward
+// From src/ops/activations.cpp — ReLUOperation backward
 void backward(const std::vector<float>& grad) override {
     std::vector<float> dx(grad.size());
     for (size_t i = 0; i < grad.size(); ++i)
@@ -52,7 +52,7 @@ For multi-class classification (e.g., 10 MNIST classes), the output layer uses s
 
 $$\text{softmax}(x)_i = \frac{e^{x_i - \max(x)}}{\sum_j e^{x_j - \max(x)}}$$
 
-The $\max(x)$ subtraction is numerical stabilization — it prevents overflow when $x_i$ is large. Softmax is fused with cross-entropy loss in this framework (they share a backward pass that cancels neatly).
+The $\max(x)$ subtraction is numerical stabilization — it prevents overflow when $x_i$ is large. Softmax is fused with cross-entropy loss in this framework (they share a backward pass that cancels neatly — see [Lesson 8: MNIST Capstone](/lessons/08-mnist-capstone) for the full derivation).
 
 <div class="callout">
 In practice: use ReLU in hidden layers. Use Sigmoid only for binary output, Softmax (via CrossEntropyLoss) for multi-class output. Tanh is a reasonable choice for small networks where ReLU dying is a concern.

@@ -62,6 +62,10 @@ for (int i = 0; i < total_out; ++i) {
 
 This is why max-pooling works well with ReLU: positions that weren't the maximum also weren't the most active — so routing zero gradient to them makes sense.
 
+### Conv2d backward
+
+The backward pass of a convolution is itself a convolution — specifically, the input gradient is computed by convolving the output gradient with the kernel **flipped 180°** (rotating both spatial dimensions). The kernel gradient is computed by convolving the *input* with the output gradient. This elegant symmetry means the same inner-loop logic used in the forward pass can be reused in the backward pass with different index arithmetic.
+
 ## Hierarchical features
 
 The power of CNNs comes from stacking layers. Early layers learn low-level features (edges, corners). Later layers combine these into higher-level features (shapes, textures, eventually "digit 7"). This hierarchy emerges from training — you don't specify it.
@@ -75,7 +79,7 @@ $$8 \times 12 \times 12 = 1152 \text{ features per image}$$
 The `Flatten` layer reshapes `[batch, 8, 12, 12]` → `[batch, 1152]`.
 
 ```cpp
-// nn/Flatten.h
+// From nn/Flatten.h
 Tensor forward(const Tensor& input) override {
     int batch = input.shape[0];
     int flat  = input.data.size() / batch;
@@ -86,5 +90,5 @@ Tensor forward(const Tensor& input) override {
 Flatten's backward is the reshape in reverse — the gradient arrives as `[batch, 1152]` and passes through unchanged. The data is already contiguous so no copy is needed; the original shape is stored during forward to enable this.
 
 <div class="callout">
-The MNIST capstone architecture is: Conv2d(1,8,5) → ReLU → MaxPool2d(2) → Flatten → BatchNorm(1152) → Linear(1152,64) → Dropout(0.3) → Linear(64,10). Every component in this chain is built in this framework.
+The MNIST capstone architecture is: Conv2d(1,8,5) → ReLU → MaxPool2d(2) → Flatten → BatchNorm(1152) → Linear(1152,64) → ReLU → Dropout(0.3) → Linear(64,10). Every component in this chain is built in this framework.
 </div>

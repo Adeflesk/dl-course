@@ -21,7 +21,7 @@ where $\eta$ is the **learning rate** — how big a step to take. Too large: ove
 In practice, you compute the gradient on a **mini-batch** (a random subset of training examples) rather than the full dataset. This is the "stochastic" part — the gradient is noisy but cheap to compute.
 
 ```cpp
-// SGD optimizer in tensorflowccp
+// From src/optim/SGD.cpp
 void SGD::step() {
     for (Tensor* p : params) {
         for (size_t i = 0; i < p->data.size(); ++i)
@@ -29,6 +29,20 @@ void SGD::step() {
     }
 }
 ```
+
+## Zeroing gradients
+
+Gradients **accumulate** — `accumulate_grad()` adds to the existing `.grad` vector, it doesn't overwrite it. This means if you run two forward-backward passes without clearing, the second pass adds to the first pass's gradients. The optimizer then steps using the sum of both, which is wrong.
+
+You must zero all parameter gradients before each forward pass:
+
+```cpp
+// Before each batch
+for (Tensor* p : model.parameters())
+    std::fill(p->grad.begin(), p->grad.end(), 0.0f);
+```
+
+Forgetting `zero_grad()` is the single most common training bug. The network will still train — just with noisy, ever-growing gradients — producing mysteriously bad results that look almost right.
 
 ## Why vanilla SGD struggles
 

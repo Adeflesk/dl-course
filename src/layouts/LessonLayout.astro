@@ -18,10 +18,14 @@ const { title, chapter, description } = Astro.props;
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
+    <meta property="og:title" content={`${title} — Deep Learning from Scratch`} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="article" />
     <title>{title} — Deep Learning from Scratch</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   </head>
   <body>
+    <div class="progress-bar" id="progress-bar"></div>
     <div class="layout">
       <aside class="sidebar">
         <div class="sidebar-title">Deep Learning<br />from Scratch</div>
@@ -31,5 +35,16 @@ const { title, chapter, description } = Astro.props;
         <slot />
       </main>
     </div>
+    <script>
+      const bar = document.getElementById('progress-bar');
+      if (bar) {
+        window.addEventListener('scroll', () => {
+          const scrollTop = window.scrollY;
+          const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+          const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+          bar.style.width = progress + '%';
+        });
+      }
+    </script>
   </body>
 </html>

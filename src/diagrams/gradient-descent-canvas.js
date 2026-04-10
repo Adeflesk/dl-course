@@ -1,24 +1,51 @@
 // src/diagrams/gradient-descent-canvas.js
 export function initGradientDescentDiagram(canvas) {
   const ctx = canvas.getContext('2d');
-  const W = canvas.width  = 560;
-  const H = canvas.height = 260;
+  const dpr = window.devicePixelRatio || 1;
+
+  // Responsive sizing
+  function getSize() {
+    const containerW = canvas.parentElement.clientWidth - 32;
+    const W = Math.max(320, Math.min(560, containerW));
+    const H = Math.round(W * (260 / 560));
+    return { W, H };
+  }
+
+  let { W, H } = getSize();
+
+  function setupCanvas() {
+    ({ W, H } = getSize());
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
 
   // Loss function: L(w) = 0.5*(w-2)^2 + 0.1 (1D parabola)
   const lossMin = 2.0;   // w* = 2
   function loss(w) { return 0.5 * (w - lossMin) ** 2 + 0.1; }
   function dloss(w) { return w - lossMin; }
 
-  const PAD_L = 60, PAD_R = 40, PAD_T = 30, PAD_B = 50;
-  const plotW = W - PAD_L - PAD_R;
-  const plotH = H - PAD_T - PAD_B;
   const wMin = -2, wMax = 6;
   const lMin = 0, lMax = 8.5;
 
-  function toScreen(w, l) {
+  function getPadding() {
     return {
-      x: PAD_L + (w - wMin) / (wMax - wMin) * plotW,
-      y: PAD_T + (1 - (l - lMin) / (lMax - lMin)) * plotH,
+      l: Math.round(W * 60 / 560),
+      r: Math.round(W * 40 / 560),
+      t: Math.round(H * 30 / 260),
+      b: Math.round(H * 50 / 260),
+    };
+  }
+
+  function toScreen(w, l) {
+    const PAD = getPadding();
+    const plotW = W - PAD.l - PAD.r;
+    const plotH = H - PAD.t - PAD.b;
+    return {
+      x: PAD.l + (w - wMin) / (wMax - wMin) * plotW,
+      y: PAD.t + (1 - (l - lMin) / (lMax - lMin)) * plotH,
     };
   }
 
@@ -34,24 +61,29 @@ export function initGradientDescentDiagram(canvas) {
   let frame = 0;
 
   function draw() {
+    setupCanvas();
+    const PAD = getPadding();
+    const plotW = W - PAD.l - PAD.r;
+    const plotH = H - PAD.t - PAD.b;
+
     ctx.clearRect(0, 0, W, H);
 
     // Draw axes
     ctx.strokeStyle = '#333';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(PAD_L, PAD_T);
-    ctx.lineTo(PAD_L, PAD_T + plotH);
-    ctx.lineTo(PAD_L + plotW, PAD_T + plotH);
+    ctx.moveTo(PAD.l, PAD.t);
+    ctx.lineTo(PAD.l, PAD.t + plotH);
+    ctx.lineTo(PAD.l + plotW, PAD.t + plotH);
     ctx.stroke();
 
     // Axis labels
     ctx.fillStyle = '#555';
-    ctx.font = '11px monospace';
+    ctx.font = `${Math.round(W * 11 / 560)}px monospace`;
     ctx.textAlign = 'center';
-    ctx.fillText('weight value \u2192', PAD_L + plotW / 2, H - 8);
+    ctx.fillText('weight value \u2192', PAD.l + plotW / 2, H - Math.round(H * 8 / 260));
     ctx.save();
-    ctx.translate(14, PAD_T + plotH / 2);
+    ctx.translate(Math.round(W * 14 / 560), PAD.t + plotH / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.fillText('loss \u2192', 0, 0);
     ctx.restore();
@@ -95,10 +127,10 @@ export function initGradientDescentDiagram(canvas) {
 
     // Label
     ctx.fillStyle = '#555';
-    ctx.font = '10px monospace';
+    ctx.font = `${Math.round(W * 10 / 560)}px monospace`;
     ctx.textAlign = 'left';
     const done = steps === history.length - 1;
-    ctx.fillText(done ? 'converged \u2713' : `step ${steps} / ${history.length - 1}  lr=${lr}`, PAD_L + 4, PAD_T + 14);
+    ctx.fillText(done ? 'converged \u2713' : `step ${steps} / ${history.length - 1}  lr=${lr}`, PAD.l + 4, PAD.t + Math.round(H * 14 / 260));
   }
 
   draw();
@@ -127,4 +159,8 @@ export function initGradientDescentDiagram(canvas) {
   }
 
   startLoop();
+
+  window.addEventListener('resize', () => {
+    draw();
+  });
 }

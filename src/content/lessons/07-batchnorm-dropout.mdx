@@ -19,7 +19,7 @@ $$\hat{x}_i = \frac{x_i - \mu}{\sqrt{\sigma^2 + \epsilon}}, \quad y_i = \gamma \
 During training, mean and variance are computed from the mini-batch. During evaluation, stored **running statistics** are used instead, giving deterministic output.
 
 ```cpp
-// nn/BatchNorm.h — training mode
+// From nn/BatchNorm.h — training mode
 std::vector<float>& rm = running_mean;  // exponential moving average
 std::vector<float>& rv = running_var;
 for (int c = 0; c < C; ++c) {
@@ -36,9 +36,9 @@ Starting from $\frac{\partial L}{\partial \hat{x}_i}$ (gradient w.r.t. normalize
 
 $$\frac{\partial L}{\partial \sigma^2} = \sum_i \frac{\partial L}{\partial \hat{x}_i} \cdot (x_i - \mu) \cdot \left(-\frac{1}{2}\right)(\sigma^2 + \epsilon)^{-3/2}$$
 
-$$\frac{\partial L}{\partial \mu} = \sum_i \frac{\partial L}{\partial \hat{x}_i} \cdot (-\frac{1}{\sigma}) + \frac{\partial L}{\partial \sigma^2} \cdot \frac{-2}{N}\sum_i(x_i - \mu)$$
+$$\frac{\partial L}{\partial \mu} = \sum_i \frac{\partial L}{\partial \hat{x}_i} \cdot \left(-\frac{1}{\sqrt{\sigma^2 + \epsilon}}\right) + \frac{\partial L}{\partial \sigma^2} \cdot \frac{-2}{N}\sum_i(x_i - \mu)$$
 
-$$\frac{\partial L}{\partial x_i} = \frac{\partial L}{\partial \hat{x}_i} \cdot \frac{1}{\sigma} + \frac{\partial L}{\partial \sigma^2} \cdot \frac{2(x_i - \mu)}{N} + \frac{\partial L}{\partial \mu} \cdot \frac{1}{N}$$
+$$\frac{\partial L}{\partial x_i} = \frac{\partial L}{\partial \hat{x}_i} \cdot \frac{1}{\sqrt{\sigma^2 + \epsilon}} + \frac{\partial L}{\partial \sigma^2} \cdot \frac{2(x_i - \mu)}{N} + \frac{\partial L}{\partial \mu} \cdot \frac{1}{N}$$
 
 The actual implementation precomputes `inv_std` and `inv_std_cubed` once per channel to avoid redundant sqrt operations, then computes dx_hat → dvar → dmean → dx in sequence:
 
@@ -103,7 +103,7 @@ $$y_i = \begin{cases} \frac{x_i}{1-p} & \text{with probability } 1-p \\ 0 & \tex
 This is **inverted dropout** — the scaling happens during training, so at eval time the pass-through is an exact identity (no scaling needed).
 
 ```cpp
-// nn/Dropout.h — training mode
+// From nn/Dropout.h — training mode
 float scale = 1.0f / (1.0f - p);
 std::bernoulli_distribution dist(1.0f - p);
 for (auto& m : mask)

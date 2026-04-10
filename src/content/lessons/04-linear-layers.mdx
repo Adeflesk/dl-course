@@ -60,7 +60,7 @@ $$W \sim \mathcal{U}\left(-\sqrt{\frac{6}{\text{in} + \text{out}}}, \sqrt{\frac{
 This keeps the variance of activations roughly constant across layers at initialization.
 
 ```cpp
-// nn/Linear.h — Xavier initialization
+// From nn/Linear.h — Xavier initialization
 float limit = std::sqrt(6.0f / (in_features + out_features));
 std::uniform_real_distribution<float> dist(-limit, limit);
 for (auto& w : weight.data) w = dist(gen);
@@ -95,7 +95,7 @@ Without `input_copy`, the matmul operation's input pointer would dangle as soon 
 XOR is not linearly separable — no single line separates (0,0),(1,1) from (0,1),(1,0). You need at least one hidden layer to solve it. This makes it the canonical test for a working backprop implementation.
 
 ```cpp
-// main.cpp — XOR training with 2-layer network
+// From main.cpp — XOR training with 2-layer network
 nn::Sequential model({
     std::make_shared<nn::Linear>(2, 4),
     std::make_shared<nn::Tanh>(),

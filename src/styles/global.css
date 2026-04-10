@@ -254,3 +254,159 @@ pre code {
   margin: 0;
   line-height: 1.5;
 }
+
+/* ── Tables ─────────────────────────────────────────────── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  font-size: 0.875rem;
+  font-family: var(--font-mono);
+}
+
+thead th {
+  text-align: left;
+  color: var(--heading);
+  font-weight: 600;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 2px solid var(--accent);
+  background: var(--bg-subtle);
+}
+
+tbody td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--bg-border);
+  color: var(--text);
+}
+
+tbody tr:nth-child(even) {
+  background: var(--bg-subtle);
+}
+
+tbody tr:hover {
+  background: #1a1a1a;
+}
+
+/* ── Code language badge ────────────────────────────────── */
+pre {
+  position: relative;
+}
+
+pre[data-language]::before {
+  content: attr(data-language);
+  position: absolute;
+  top: 0.4rem;
+  right: 0.6rem;
+  font-size: 0.65rem;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.6;
+}
+
+/* ── Reading progress bar ───────────────────────────────── */
+.progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  background: var(--accent);
+  z-index: 1000;
+  transition: width 0.1s linear;
+  pointer-events: none;
+}
+
+/* ── Mobile responsive ──────────────────────────────────── */
+@media (max-width: 768px) {
+  .layout {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: relative;
+    border-right: none;
+    border-bottom: 1px solid var(--bg-border);
+    padding: 0.75rem 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .sidebar-title {
+    padding: 0 1rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.65rem;
+  }
+
+  .sidebar nav {
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .sidebar nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav-item {
+    white-space: nowrap;
+    padding: 0.4rem 0.75rem;
+    border-left: none;
+    border-bottom: 2px solid transparent;
+    font-size: 0.8rem;
+    flex-shrink: 0;
+  }
+
+  .nav-item.active {
+    border-left-color: transparent;
+    border-bottom-color: var(--accent);
+  }
+
+  .main-content {
+    padding: 1.5rem 1.25rem;
+    max-width: 100%;
+  }
+
+  .hero {
+    padding: 2rem 1.25rem 1.5rem;
+  }
+
+  .hero h1 {
+    font-size: 1.5rem;
+  }
+
+  .chapter-grid {
+    padding: 1rem 1.25rem 2rem;
+    grid-template-columns: 1fr;
+  }
+
+  .prev-next {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .prev-next div:last-child {
+    text-align: left;
+  }
+
+  .diagram-container canvas {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  html { font-size: 15px; }
+
+  .main-content {
+    padding: 1rem;
+  }
+
+  pre {
+    padding: 0.75rem;
+    font-size: 0.8rem;
+  }
+}

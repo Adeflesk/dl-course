@@ -33,7 +33,7 @@ struct Tensor {
 };
 ```
 
-Leaf tensors (weights, inputs) have `backOp == nullptr`. Every operation creates a new output tensor and sets `backOp` to point back at itself, building the computation graph.
+Leaf tensors (weights, inputs) have `backOp == nullptr`. Every operation creates a new output tensor and sets `backOp` to point back at itself, building the computation graph. It's a `shared_ptr` because multiple output tensors can reference the same operation when an op produces more than one result — shared ownership keeps the operation alive as long as any of its outputs exist.
 
 ## Element-wise operations and broadcasting
 

@@ -18,13 +18,14 @@ MNIST is 60,000 handwritten digit images (28×28 pixels, 10 classes). It's the c
   → Flatten              → [batch, 1152]
   → BatchNorm(1152)      → [batch, 1152]         # normalize, stabilize
   → Linear(1152, 64)    → [batch, 64]
-  → Dropout(0.3)        → [batch, 64]            # regularize (no ReLU — see note below)
+  → ReLU                → [batch, 64]            # nonlinearity between linear layers
+  → Dropout(0.3)        → [batch, 64]            # regularize
   → Linear(64, 10)      → [batch, 10]            # class logits
 ```
 
 Total parameters: **76,954**.
 
-**Note on the two linear layers:** There is no activation function between `Linear(1152, 64)` and `Linear(64, 10)`. Strictly, during inference (Dropout is identity), these two layers collapse into a single linear map — the 64-dimensional intermediate representation adds no nonlinear capacity. In standard practice you would insert a `ReLU` between them. Here it was omitted deliberately to keep the architecture minimal, and the strong nonlinear features already extracted by the CNN are sufficient for 98.5% accuracy. Adding `nn::ReLU()` before the Dropout would be more correct and likely improve results further.
+**Note on the two linear layers:** A `ReLU` activation sits between `Linear(1152, 64)` and `Dropout`. Without it, the two linear layers would collapse into a single linear map during inference (since Dropout is identity at eval time), adding no nonlinear capacity. The `ReLU` ensures the 64-dimensional bottleneck is genuinely expressive.
 
 ```cpp
 nn::Sequential model({
@@ -34,6 +35,7 @@ nn::Sequential model({
     std::make_shared<nn::Flatten>(),
     std::make_shared<nn::BatchNorm>(1152),
     std::make_shared<nn::Linear>(1152, 64),
+    std::make_shared<nn::ReLU>(),
     std::make_shared<nn::Dropout>(0.3f),
     std::make_shared<nn::Linear>(64, 10)
 });
@@ -46,6 +48,37 @@ nn::Sequential model({
 - **Batch size:** 100
 - **Epochs:** 10
 - **Data:** Full 60,000 training images, shuffled each epoch
+
+```cpp
+// From main.cpp — training loop
+nn::CrossEntropyLoss criterion;
+optim::Adam optimizer(model.parameters(), /*lr=*/0.001f);
+
+for (int epoch = 0; epoch < 10; ++epoch) {
+    model.train();
+    shuffle(indices);  // random batch order each epoch
+
+    for (int b = 0; b < num_batches; ++b) {
+        Tensor images = get_batch(train_images, indices, b, batch_size);
+        Tensor labels = get_batch(train_labels, indices, b, batch_size);
+
+        // Forward
+        Tensor logits = model.forward(images);
+        Tensor loss = criterion.forward(logits, labels);
+
+        // Backward
+        model.zero_grad();
+        loss.backward();
+
+        // Update weights
+        optimizer.step();
+    }
+
+    // Evaluate
+    model.eval();
+    float acc = compute_accuracy(model, test_images, test_labels);
+    printf("Epoch %d  loss=%.4f  test_acc=%.1f%%\n", epoch, avg_loss, acc);
+}
 
 ## Results
 
