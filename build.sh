@@ -23,7 +23,9 @@ echo "Step 1: Compiling tensorflowccp to WASM..."
 )
 
 echo "Step 2: Copying WASM artifacts..."
-cp wasm-src/build/framework.* public/wasm/
+# Copy and rename artifacts (emcc generates framework.js.js and framework.js.wasm from target framework.js)
+cp public/wasm/framework.js.js public/wasm/framework.js
+cp public/wasm/framework.js.wasm public/wasm/framework.wasm
 
 # Build Astro site
 echo "Step 3: Building Astro site..."
