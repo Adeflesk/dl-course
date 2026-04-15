@@ -3,9 +3,9 @@
 #include <vector>
 #include <cmath>
 
-// Stub: This will expose Tensor operations to JavaScript
-// For now, just a minimal binding that compiles. Full Tensor integration comes later.
+using emscripten::val;
 
+// Stub Tensor class for WASM
 class TensorWasm {
 public:
     std::vector<float> data;
@@ -17,17 +17,16 @@ public:
         data.resize(size, 0.0f);
     }
 
-    // Basic API that JS will call
-    emscripten::val getShape() const {
-        emscripten::val result = emscripten::val::array();
+    val getShape() const {
+        val result = val::array();
         for (size_t i = 0; i < shape.size(); ++i) {
             result.set(i, shape[i]);
         }
         return result;
     }
 
-    emscripten::val getData() const {
-        emscripten::val result = emscripten::val::array();
+    val getData() const {
+        val result = val::array();
         for (size_t i = 0; i < data.size(); ++i) {
             result.set(i, data[i]);
         }
@@ -41,12 +40,11 @@ public:
     int size() const { return data.size(); }
 };
 
-// Bindings to JavaScript
 EMSCRIPTEN_BINDINGS(tensorflowccp) {
     emscripten::class_<TensorWasm>("Tensor")
         .constructor<std::vector<int>>()
-        .function("getShape", &TensorWasm::getShape)
-        .function("getData", &TensorWasm::getData)
-        .function("setData", &TensorWasm::setData)
-        .function("size", &TensorWasm::size);
+        .method("getShape", &TensorWasm::getShape)
+        .method("getData", &TensorWasm::getData)
+        .method("setData", &TensorWasm::setData)
+        .method("size", &TensorWasm::size);
 }
