@@ -1,0 +1,193 @@
+---
+// src/components/CodeSnippet.astro
+interface Props {
+    title?: string;
+    language?: string;
+    code: string;
+    highlight?: number[]; // line numbers to highlight (1-indexed)
+}
+
+const { title, language = "cpp", code, highlight = [] } = Astro.props;
+
+const lines = code.split('\n');
+const highlightSet = new Set(highlight);
+
+// Generate a unique ID for this snippet instance
+const snippetId = Math.random().toString(36).substring(7);
+---
+
+<div class="code-snippet-container">
+    {title && <div class="code-snippet-title">{title}</div>}
+    <div class="code-snippet-header">
+        <span class="language-label">{language}</span>
+        <button class="copy-btn" data-snippet-id={snippetId} aria-label="Copy code">
+            Copy
+        </button>
+    </div>
+    <pre class="code-snippet"><code class={`language-${language}`} data-snippet-id={snippetId}>{lines.map((line, index) => {
+        const lineNum = index + 1;
+        const isHighlighted = highlightSet.has(lineNum);
+        return <span key={lineNum} class={isHighlighted ? 'highlight-line' : ''} data-line={lineNum}>{line}
+</span>;
+    })}</code></pre>
+</div>
+
+<style>
+.code-snippet-container {
+    margin: 1.5rem 0;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    background: #f9f9f9;
+    overflow: hidden;
+}
+
+.code-snippet-title {
+    background: #f0f0f0;
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+    border-bottom: 1px solid #e0e0e0;
+    color: #333;
+}
+
+.code-snippet-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    background: #fafafa;
+    border-bottom: 1px solid #e0e0e0;
+    font-size: 0.85rem;
+}
+
+.language-label {
+    color: #666;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+}
+
+.copy-btn {
+    background: white;
+    border: 1px solid #d0d0d0;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #333;
+    transition: all 0.2s ease;
+}
+
+.copy-btn:hover {
+    background: #f0f0f0;
+    border-color: #999;
+}
+
+.copy-btn:active {
+    background: #e8e8e8;
+}
+
+.code-snippet {
+    padding: 1rem;
+    overflow-x: auto;
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: #333;
+    background: white;
+}
+
+.code-snippet code {
+    font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
+    font-size: 0.9em;
+    display: block;
+}
+
+.highlight-line {
+    background: #fffacd;
+    display: block;
+    padding: 0 0.5rem;
+    margin: 0 -1rem;
+    padding-left: calc(0.5rem + 1rem);
+    padding-right: calc(0.5rem + 1rem);
+}
+
+@media (prefers-color-scheme: dark) {
+    .code-snippet-container {
+        background: #1e1e1e;
+        border-color: #333;
+    }
+
+    .code-snippet-title {
+        background: #2d2d2d;
+        border-color: #333;
+        color: #e0e0e0;
+    }
+
+    .code-snippet-header {
+        background: #2a2a2a;
+        border-color: #333;
+    }
+
+    .language-label {
+        color: #999;
+    }
+
+    .copy-btn {
+        background: #333;
+        border-color: #555;
+        color: #e0e0e0;
+    }
+
+    .copy-btn:hover {
+        background: #444;
+        border-color: #777;
+    }
+
+    .copy-btn:active {
+        background: #555;
+    }
+
+    .code-snippet {
+        background: #1e1e1e;
+        color: #e0e0e0;
+    }
+
+    .highlight-line {
+        background: #3a3a2a;
+    }
+}
+</style>
+
+<script define:vars={{ snippetId }}>
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.copy-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const currentSnippetId = btn.getAttribute('data-snippet-id');
+            const codeElement = document.querySelector(`code[data-snippet-id="${currentSnippetId}"]`);
+
+            if (!codeElement) return;
+
+            // Extract text content from code element, removing empty lines at start/end
+            let code = codeElement.textContent.trim();
+
+            try {
+                await navigator.clipboard.writeText(code);
+                const originalText = btn.textContent;
+                btn.textContent = 'Copied!';
+                btn.disabled = true;
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.disabled = false;
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy:', err);
+                btn.textContent = 'Failed to copy';
+                setTimeout(() => {
+                    btn.textContent = 'Copy';
+                }, 2000);
+            }
+        });
+    });
+});
+</script>
