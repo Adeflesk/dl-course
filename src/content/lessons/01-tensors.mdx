@@ -12,7 +12,7 @@ Every tensor has a **shape** — a list of dimension sizes. A tensor with shape 
 
 The data lives in a single flat `std::vector<float>`, laid out in **row-major order**: row 0 first, then row 1, and so on. To access element `[i, j]` in a `[rows, cols]` tensor:
 
-$$\text{index}(i, j) = i \cdot \text{cols} + j$$
+$$\text{index}(i,\, j) = i \times \text{cols} + j$$
 
 For a 4-D tensor with shape $[N, C, H, W]$, the element at `[n, c, h, w]` is at:
 
@@ -27,7 +27,7 @@ In tensorflowccp, `Tensor` is the core type. It holds shape, flat data, flat gra
 ```cpp
 struct Tensor {
     std::vector<int>   shape;   // e.g. {32, 1, 28, 28}
-    std::vector<float> data;    // flat, row-major
+    std::vector<float> data;    // flat, row-major contiguous block — see "Why flat storage?"
     std::vector<float> grad;    // same size as data, zeroed initially
     std::shared_ptr<Operation> backOp; // null for leaf tensors
 };
@@ -42,7 +42,7 @@ Operations like `+`, `*`, `-`, `/` work element-wise. When shapes don't match ex
 - A shape `[1, 4]` bias broadcasts to `[32, 4]` when added to a `[32, 4]` output.
 - A scalar broadcasts to any shape.
 
-Broadcasting never copies data — it maps indices on the fly during the operation.
+Broadcasting never copies data — it maps indices on the fly during the operation. When a dimension has size 1, its index is clamped to 0 regardless of what the output index is, so the same single element is reused across every output position in that dimension.
 
 ## Why flat storage?
 
