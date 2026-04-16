@@ -1,0 +1,71 @@
+---
+interface Props {
+    title?: string;
+    description?: string;
+    demoId: string;  // unique ID for this demo
+}
+
+const { title, description, demoId } = Astro.props;
+---
+
+<div class="wasm-demo" id={demoId}>
+    {title && <h3 class="demo-title">{title}</h3>}
+    {description && <p class="demo-description">{description}</p>}
+
+    <div class="demo-canvas">
+        <slot name="demo" />
+    </div>
+</div>
+
+<style>
+.wasm-demo {
+    margin: 2rem 0;
+    padding: 1.5rem;
+    border: 2px solid #4a90e2;
+    border-radius: 8px;
+    background: #f5f9ff;
+}
+
+.demo-title {
+    margin: 0 0 0.5rem 0;
+    color: #4a90e2;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.demo-description {
+    margin: 0 0 1rem 0;
+    color: #666;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.demo-canvas {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 1rem;
+    min-height: 300px;
+    position: relative;
+}
+
+@media (prefers-color-scheme: dark) {
+    .wasm-demo {
+        background: #1a2a3a;
+        border-color: #4a90e2;
+    }
+
+    .demo-title {
+        color: #4a9fd8;
+    }
+
+    .demo-description {
+        color: #b0b0b0;
+    }
+
+    .demo-canvas {
+        background: #1e1e1e;
+        border-color: #333;
+    }
+}
+</style>
