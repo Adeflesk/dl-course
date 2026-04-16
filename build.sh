@@ -26,6 +26,6 @@ fi
 
 # ── Astro site build ─────────────────────────────────────────────────────────
 echo "Step 2: Building Astro site..."
-npm run build
+npx astro build
 
 echo "=== Build Complete ==="

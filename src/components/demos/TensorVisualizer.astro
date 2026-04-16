@@ -1,0 +1,172 @@
+---
+import WasmDemo from '../WasmDemo.astro';
+---
+
+<WasmDemo
+    title="Interactive Tensor Creator"
+    description="Create and reshape tensors to see how the memory layout changes."
+    demoId="tensor-visualizer"
+>
+    <div slot="demo" class="tensor-demo">
+        <div class="controls">
+            <div class="control-group">
+                <label for="rows">Rows:</label>
+                <input type="number" id="rows" value="3" min="1" max="10" />
+            </div>
+            <div class="control-group">
+                <label for="cols">Columns:</label>
+                <input type="number" id="cols" value="4" min="1" max="10" />
+            </div>
+            <button id="create-btn">Create Tensor</button>
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="tensor-canvas" width="500" height="300"></canvas>
+        </div>
+
+        <div class="info">
+            <p id="shape-info">Shape: [3, 4] | Size: 12 elements</p>
+            <p id="memory-info">Memory: contiguous, row-major order</p>
+        </div>
+    </div>
+</WasmDemo>
+
+<style>
+.tensor-demo {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.controls {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-end;
+    padding: 1rem;
+    background: #f5f5f5;
+    border-radius: 6px;
+    flex-wrap: wrap;
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.control-group label {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #333;
+}
+
+.control-group input {
+    padding: 0.4rem 0.6rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+button {
+    padding: 0.6rem 1.2rem;
+    background: #4a90e2;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.2s;
+}
+
+button:hover {
+    background: #2e5c8a;
+}
+
+.canvas-container {
+    display: flex;
+    justify-content: center;
+    background: white;
+    padding: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+}
+
+canvas {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.info {
+    padding: 1rem;
+    background: #f0f7ff;
+    border-left: 4px solid #4a90e2;
+    border-radius: 4px;
+}
+
+.info p {
+    margin: 0.25rem 0;
+    font-size: 0.9rem;
+    color: #333;
+    font-family: monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+    .controls {
+        background: #2a2a2a;
+    }
+
+    .control-group label {
+        color: #b0b0b0;
+    }
+
+    .control-group input {
+        background: #1e1e1e;
+        border-color: #444;
+        color: #b0b0b0;
+    }
+
+    .canvas-container {
+        background: #1e1e1e;
+        border-color: #333;
+    }
+
+    canvas {
+        border-color: #333;
+    }
+
+    .info {
+        background: #0a1f2e;
+        border-left-color: #4a90e2;
+        color: #b0b0b0;
+    }
+
+    .info p {
+        color: #b0b0b0;
+    }
+}
+</style>
+
+<script>
+import { TensorVisualizer } from '../../js/demos/tensor-visualizer';
+
+const visualizer = new TensorVisualizer('tensor-canvas');
+
+// Default: draw 3x4 tensor
+const defaultData = Array.from({ length: 12 }, (_, i) => i + 1);
+visualizer.drawTensor([3, 4], defaultData);
+
+document.getElementById('create-btn')?.addEventListener('click', () => {
+    const rows = parseInt((document.getElementById('rows') as HTMLInputElement).value);
+    const cols = parseInt((document.getElementById('cols') as HTMLInputElement).value);
+    const size = rows * cols;
+    const data = Array.from({ length: size }, (_, i) => i + 1);
+
+    visualizer.clear();
+    visualizer.drawTensor([rows, cols], data);
+
+    const shapeInfo = document.getElementById('shape-info');
+    if (shapeInfo) {
+        shapeInfo.textContent = `Shape: [${rows}, ${cols}] | Size: ${size} elements`;
+    }
+});
+</script>
