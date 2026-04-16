@@ -1,0 +1,157 @@
+---
+interface Props {
+    name: string;      // e.g., "nn::Linear", "Tensor"
+    description?: string;
+}
+
+const { name, description } = Astro.props;
+---
+
+<div class="api-reference">
+    <div class="api-header">
+        <span class="api-icon">📚</span>
+        <h4 class="api-name">{name}</h4>
+    </div>
+    {description && <p class="api-description">{description}</p>}
+    <div class="api-content">
+        <slot />
+    </div>
+</div>
+
+<style>
+.api-reference {
+    margin: 1.5rem 0;
+    padding: 0;
+    border-left: 4px solid #0066cc;
+    background: #f0f7ff;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.api-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: #e6f2ff;
+    border-bottom: 1px solid #b3d9ff;
+}
+
+.api-icon {
+    font-size: 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.api-name {
+    margin: 0;
+    font-size: 1.05rem;
+    color: #0066cc;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.api-description {
+    margin: 0;
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
+    color: #444;
+    border-bottom: 1px solid #b3d9ff;
+    line-height: 1.5;
+}
+
+.api-content {
+    padding: 1rem;
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+/* Code block styling within API reference */
+.api-content :global(code) {
+    background: #f5f5f5;
+    padding: 0.2rem 0.4rem;
+    border-radius: 3px;
+    font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
+    color: #c41a16;
+    font-size: 0.9em;
+}
+
+.api-content :global(pre) {
+    background: #f8f9fa;
+    padding: 0.75rem;
+    border-radius: 4px;
+    overflow-x: auto;
+    margin: 0.5rem 0;
+    border: 1px solid #e0e0e0;
+}
+
+.api-content :global(pre code) {
+    background: none;
+    padding: 0;
+    color: #333;
+}
+
+/* Lists in API reference */
+.api-content :global(ul),
+.api-content :global(ol) {
+    margin: 0.5rem 0;
+    padding-left: 1.5rem;
+}
+
+.api-content :global(li) {
+    margin: 0.25rem 0;
+}
+
+/* Headings in API reference */
+.api-content :global(h5) {
+    margin: 0.75rem 0 0.5rem 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #333;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 0.25rem;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .api-reference {
+        background: #0a1f2e;
+        border-left-color: #4a90e2;
+    }
+
+    .api-header {
+        background: #0d2641;
+        border-bottom-color: #1a4d7a;
+    }
+
+    .api-name {
+        color: #4a9fd8;
+    }
+
+    .api-description {
+        color: #b0b0b0;
+        border-bottom-color: #1a4d7a;
+    }
+
+    .api-content :global(code) {
+        background: #1e1e1e;
+        color: #f08080;
+    }
+
+    .api-content :global(pre) {
+        background: #1e1e1e;
+        border-color: #333;
+        color: #e0e0e0;
+    }
+
+    .api-content :global(h5) {
+        color: #b0b0b0;
+        border-bottom-color: #333;
+    }
+
+    .api-content {
+        color: #b0b0b0;
+    }
+}
+</style>
