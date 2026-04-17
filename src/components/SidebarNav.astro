@@ -16,7 +16,7 @@ const sortedLessons = lessons.sort((a, b) => a.data.chapter - b.data.chapter);
 <nav>
   {sortedLessons.map(lesson => (
     <a
-      href={`/lessons/${lesson.slug}`}
+      href={`/lessons/${lesson.id}`}
       class={`nav-item${lesson.data.chapter === currentChapter ? ' active' : ''}`}
     >
       <span class="nav-chapter-num">{String(lesson.data.chapter).padStart(2, '0')}</span>
