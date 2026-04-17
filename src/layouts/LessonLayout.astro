@@ -1,6 +1,8 @@
 ---
 // src/layouts/LessonLayout.astro
 import SidebarNav from '../components/SidebarNav.astro';
+import PrevNext from '../components/PrevNext.astro';
+import { getCollection } from 'astro:content';
 import '../styles/global.css';
 
 interface Props {
@@ -10,6 +12,15 @@ interface Props {
 }
 
 const { title, chapter, description } = Astro.props;
+
+// Get lesson list for prev/next nav
+const allLessons = await getCollection('lessons');
+const sortedLessons = allLessons.sort((a, b) => a.data.chapter - b.data.chapter);
+
+// Find current lesson in list
+const currentIndex = sortedLessons.findIndex(l => l.data.chapter === chapter);
+const prevLesson = currentIndex > 0 ? sortedLessons[currentIndex - 1] : null;
+const nextLesson = currentIndex < sortedLessons.length - 1 ? sortedLessons[currentIndex + 1] : null;
 ---
 
 <!doctype html>
@@ -33,6 +44,10 @@ const { title, chapter, description } = Astro.props;
       </aside>
       <main class="main-content">
         <slot />
+        <PrevNext
+          prev={prevLesson ? { slug: prevLesson.slug, title: prevLesson.data.title } : undefined}
+          next={nextLesson ? { slug: nextLesson.slug, title: nextLesson.data.title } : undefined}
+        />
       </main>
     </div>
     <script>

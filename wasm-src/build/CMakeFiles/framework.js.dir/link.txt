@@ -1,0 +1,1 @@
+/private/tmp/emsdk/upstream/emscripten/em++ -O3 -sWASM=1 -sALLOW_MEMORY_GROWTH=1 -sEXPORT_ES6=1 -sMODULARIZE=1 -sEXPORT_NAME=TensorflowCCP -sINVOKE_RUN=0 -lembind @CMakeFiles/framework.js.dir/objects1.rsp -o /Users/adriancorsini/Development/dl-course/public/wasm/framework.js.js

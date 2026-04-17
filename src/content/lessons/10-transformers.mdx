@@ -1,0 +1,46 @@
+---
+title: "Transformers: Attention & Self-Attention"
+chapter: 10
+description: "Self-attention mechanism, multi-head attention, and the Transformer architecture"
+---
+
+## Overview
+
+Transformers replace RNNs with self-attention, enabling parallel computation and better gradient flow.
+
+### Scaled Dot-Product Attention
+
+$$\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right) V$$
+
+Where Q (query), K (key), and V (value) are learned projections of input tokens.
+
+### Causal Masking
+
+In language models, position i can only attend to positions j ≤ i (no future peeking).
+
+### Multi-Head Attention
+
+Use H parallel attention heads with different learned projections:
+
+$$\text{MultiHead}(Q, K, V) = \text{Concat}(\text{head}_1, ..., \text{head}_H) W^O$$
+
+Different heads learn different attention patterns.
+
+### Transformer Block
+
+Stack attention + feedforward layers with residuals and layer norm:
+
+1. Self-Attention
+2. Feedforward MLP
+3. Layer normalization and residual connections
+
+## Implementation Note
+
+Full Transformer implementation and attention visualizer coming in Phase 2 (pending nn::MultiHeadAttention module in tensorflowccp).
+
+## Summary
+
+Transformers enable:
+- **Parallelization** — process all positions simultaneously
+- **Gradient flow** — attention creates direct paths for backprop
+- **Expressiveness** — multi-head attention learns diverse patterns

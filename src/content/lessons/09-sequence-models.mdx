@@ -1,0 +1,32 @@
+---
+title: "Sequence Models: RNN & LSTM"
+chapter: 9
+description: "Recurrent neural networks, LSTM cells, and backpropagation through time"
+---
+
+## Overview
+
+Sequence models process variable-length inputs by maintaining hidden state across timesteps.
+
+### Problem: Vanishing Gradients
+
+RNNs struggle with long sequences because gradients shrink exponentially during backprop through time (BPTT).
+
+### LSTM Solution
+
+LSTMs add gating mechanisms and cell state to preserve gradients:
+
+- **Forget gate** — controls which information to discard
+- **Input gate** — controls what new information to add
+- **Output gate** — controls what to expose to next layer
+- **Cell state** — long-term memory that flows through timesteps
+
+The additive cell state update creates skip connections for gradient flow.
+
+## Implementation Note
+
+Full LSTM implementation and interactive demos coming in Phase 2 (pending nn::LSTM module in tensorflowccp).
+
+## Next Steps
+
+Chapter 10 extends these ideas to Transformers, replacing recurrence with self-attention.
