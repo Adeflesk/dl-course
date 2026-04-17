@@ -4,6 +4,10 @@ chapter: 1
 description: "N-dimensional arrays with flat storage, shape, and row-major indexing"
 ---
 
+import CodeSnippet from '../../components/CodeSnippet.astro';
+import APIReference from '../../components/APIReference.astro';
+import TensorVisualizer from '../../components/demos/TensorVisualizer.astro';
+
 A tensor is an N-dimensional array. A scalar is a 0-D tensor. A vector is 1-D. A matrix is 2-D. An image batch is 4-D: `[batch, channels, height, width]`. The word sounds exotic but the idea is simple: a rectangular block of numbers with a shape.
 
 ## Shape and flat storage
@@ -34,6 +38,53 @@ struct Tensor {
 ```
 
 Leaf tensors (weights, inputs) have `backOp == nullptr`. Every operation creates a new output tensor and sets `backOp` to point back at itself, building the computation graph. It's a `shared_ptr` because multiple output tensors can reference the same operation when an op produces more than one result — shared ownership keeps the operation alive as long as any of its outputs exist.
+
+## Interactive Tensor Demonstration
+
+Try creating and reshaping tensors to understand memory layout:
+
+<TensorVisualizer />
+
+## Creating Tensors in C++
+
+Here's how to create and use tensors in tensorflowccp:
+
+<CodeSnippet 
+    title="Tensor Creation and Access"
+    code={`Tensor t({3, 4});           // 3x4 matrix, initialized to 0
+t.data[0] = 5.0f;              // Direct element access
+auto shape = t.shape();        // Get dimensions: [3, 4]
+int total_size = t.size();     // Total elements: 12`}
+    highlight={[1]}
+/>
+
+## Tensor API Reference
+
+<APIReference name="Tensor Constructor">
+
+**Constructor:**
+
+```cpp
+Tensor(const std::vector<int>& shape);
+```
+
+Creates a tensor with the specified shape, initialized to zeros.
+
+**Parameters:**
+- `shape` — Vector of dimension sizes (e.g., `{3, 4}` creates 3×4 tensor)
+
+**Example:**
+
+```cpp
+Tensor t({2, 3, 4});  // 2×3×4 tensor
+```
+
+**Methods:**
+- `std::vector<int> shape()` — Returns the shape vector
+- `int size()` — Returns total number of elements
+- `std::vector<float> data` — Direct access to underlying data
+
+</APIReference>
 
 ## Element-wise operations and broadcasting
 

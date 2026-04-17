@@ -4,6 +4,9 @@ chapter: 3
 description: "Loss surfaces, SGD, learning rate, and Adam with bias correction"
 ---
 
+import CodeSnippet from '../../components/CodeSnippet.astro';
+import APIReference from '../../components/APIReference.astro';
+
 Training a neural network means finding weights that minimize a loss function. The loss is a scalar that measures how wrong the model is. We want to move the weights in the direction that decreases it — that's gradient descent.
 
 ## The loss surface
@@ -84,6 +87,88 @@ for (size_t i = 0; i < p->data.size(); ++i) {
 import GradientDescentDiagram from '../../diagrams/GradientDescentDiagram.astro';
 
 <GradientDescentDiagram />
+
+## Implementing SGD
+
+Here's the basic SGD update rule:
+
+<CodeSnippet 
+    title="SGD Weight Update Loop"
+    code={`// Standard SGD: w := w - lr * dw
+optim::SGD optimizer(model.parameters(), 0.01f);  // lr = 0.01
+
+for (int epoch = 0; epoch < epochs; ++epoch) {
+    optimizer.zero_grad();        // Clear gradients
+    Tensor pred = model.forward(input);
+    Tensor loss = criterion.forward(pred, target);
+    loss.backward(1.0f);          // Compute gradients
+    optimizer.step();             // Update weights
+    std::cout << "Loss: " << loss.data[0] << std::endl;
+}`}
+    highlight={[6, 7]}
+/>
+
+## SGD vs Adam
+
+<CodeSnippet 
+    title="Adam Optimizer with Momentum"
+    code={`// Adam: adaptive learning rates with exponential moving averages
+optim::Adam optimizer(model.parameters(), 0.001f);  // lr = 0.001, beta1=0.9, beta2=0.999
+
+for (int epoch = 0; epoch < epochs; ++epoch) {
+    optimizer.zero_grad();
+    Tensor pred = model.forward(input);
+    Tensor loss = criterion.forward(pred, target);
+    loss.backward(1.0f);
+    optimizer.step();
+}`}
+    highlight={[1, 2]}
+/>
+
+## Optimizer API Reference
+
+<APIReference name="optim::SGD">
+
+**Constructor:**
+
+```cpp
+SGD(const std::vector<Tensor*>& params, float lr = 0.01f);
+```
+
+**Methods:**
+- `void zero_grad()` — Reset all parameter gradients to zero
+- `void step()` — Apply weight updates using gradients
+
+**Example:**
+
+```cpp
+optim::SGD optimizer(model.parameters(), 0.01f);
+optimizer.zero_grad();
+loss.backward(1.0f);
+optimizer.step();
+```
+
+</APIReference>
+
+<APIReference name="optim::Adam">
+
+**Constructor:**
+
+```cpp
+Adam(const std::vector<Tensor*>& params, float lr = 0.001f);
+```
+
+**Properties:**
+- Adaptive learning rates per parameter
+- First moment (momentum) with beta1=0.9
+- Second moment (velocity) with beta2=0.999
+- Bias correction for moment estimates
+
+**Same methods as SGD:**
+- `void zero_grad()`
+- `void step()`
+
+</APIReference>
 
 <div class="callout">
 The learning rate is the most sensitive hyperparameter. A factor of 10× too large will break training; a factor of 10× too small will converge, just slowly. Start with 0.001 for Adam and tune from there.

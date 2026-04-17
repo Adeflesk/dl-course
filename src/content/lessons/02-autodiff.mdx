@@ -4,6 +4,9 @@ chapter: 2
 description: "Computation graphs, chain rule, and topological sort backward pass"
 ---
 
+import CodeSnippet from '../../components/CodeSnippet.astro';
+import APIReference from '../../components/APIReference.astro';
+
 To train a neural network, you need to know how much each weight contributed to the loss. That means computing the partial derivative of the loss with respect to every weight. Automatic differentiation (autodiff) does this exactly — not numerically, not symbolically, but by tracing the computation and applying the chain rule backward through it.
 
 ## The computation graph
@@ -100,3 +103,53 @@ This matters in practice: every `+ bias` in a linear layer goes through this pat
 <div class="callout">
 The topo-sort backward pass was the single most important correctness fix in this framework. Without it, shared nodes (e.g. a weight used in multiple layers) accumulate gradients in the wrong order, producing silently wrong training.
 </div>
+
+## Backward Propagation in Code
+
+Here's how to call backward() and access gradients:
+
+<CodeSnippet 
+    title="Computing Gradients with Backward"
+    code={`Tensor x({2, 3});
+x.data[0] = 2.0f;
+// ... forward pass computation ...
+Tensor loss = /* computed loss */;
+
+loss.backward(1.0f);  // Start backpropagation from loss
+
+// Access gradients
+float grad_x0 = x.grad[0];  // Gradient at first element
+for (int i = 0; i < x.size(); ++i) {
+    std::cout << x.grad[i] << " ";  // Print all gradients
+}`}
+    highlight={[6, 9]}
+/>
+
+## Tensor::backward() API
+
+<APIReference name="Tensor::backward">
+
+**Method:**
+
+```cpp
+void backward(float grad = 1.0f);
+```
+
+Initiates reverse-mode automatic differentiation from this tensor.
+
+**Parameters:**
+- `grad` — Initial gradient value (usually 1.0 for scalar outputs)
+
+**Behavior:**
+- Traverses the computational graph backwards
+- Accumulates gradients in each tensor's `grad` vector
+- Requires graph to be built via forward pass first
+
+**Example:**
+
+```cpp
+Tensor y = some_computation(x);
+y.backward(1.0f);  // Compute dy/dx
+```
+
+</APIReference>
