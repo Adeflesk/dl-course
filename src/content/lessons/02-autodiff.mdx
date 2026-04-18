@@ -6,8 +6,15 @@ description: "Computation graphs, chain rule, and topological sort backward pass
 
 import CodeSnippet from '../../components/CodeSnippet.astro';
 import APIReference from '../../components/APIReference.astro';
+import DerivativeVisualizer from '../../components/demos/ch2/DerivativeVisualizer.astro';
 
 To train a neural network, you need to know how much each weight contributed to the loss. That means computing the partial derivative of the loss with respect to every weight. Automatic differentiation (autodiff) does this exactly — not numerically, not symbolically, but by tracing the computation and applying the chain rule backward through it.
+
+## Understanding Derivatives Visually
+
+Before diving into automatic differentiation, let's build intuition about what derivatives represent. A derivative measures the **instantaneous rate of change** of a function at a point — it's the slope of the tangent line.
+
+<DerivativeVisualizer demoId="ch2-derivative-viz" />
 
 ## The computation graph
 
