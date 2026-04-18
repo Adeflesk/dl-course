@@ -29,7 +29,6 @@ export interface Problem {
 }
 
 // Caches for loaded data
-const problemsCache: Map<string, Problem> | null = null;
 const trajectoriesCache = new Map<string, Trajectory>();
 
 let cachedProblems: Map<string, Problem> | null = null;
