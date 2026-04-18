@@ -1,0 +1,104 @@
+---
+export interface Props {
+  featureId: string;
+  triggerText?: string;
+  defaultUnlocked?: boolean;
+}
+
+const {
+  featureId,
+  triggerText = "Click to unlock this feature",
+  defaultUnlocked = false,
+} = Astro.props;
+---
+
+<div class="unlock-manager" data-feature-id={featureId} data-default-unlocked={defaultUnlocked}>
+  <div class="unlock-hint">
+    <p>{triggerText}</p>
+  </div>
+  <div class="unlock-content">
+    <slot />
+  </div>
+</div>
+
+<script define:vars={{ featureId, defaultUnlocked }}>
+  import { useUnlockState } from '../../../js/demos/utils/unlock-state';
+
+  // Initialize unlock state for this feature
+  const unlockState = useUnlockState(featureId, defaultUnlocked);
+  const hintElement = document.querySelector(
+    `[data-feature-id="${featureId}"] .unlock-hint`
+  );
+
+  // Check if already unlocked and hide hint if so
+  if (unlockState.isUnlocked()) {
+    if (hintElement) {
+      hintElement.classList.add('hidden');
+    }
+  }
+
+  // Listen for unlock events (both from subscribe and custom events)
+  unlockState.subscribe(() => {
+    if (hintElement) {
+      hintElement.classList.add('hidden');
+    }
+  });
+
+  // Also listen for custom unlock events from other parts of the app
+  window.addEventListener('unlock', (event) => {
+    if (event.detail && event.detail.featureId === featureId) {
+      if (hintElement) {
+        hintElement.classList.add('hidden');
+      }
+    }
+  });
+
+  // Make unlock state available globally if needed
+  window.__unlockStates = window.__unlockStates || {};
+  window.__unlockStates[featureId] = unlockState;
+</script>
+
+<style>
+  .unlock-manager {
+    position: relative;
+  }
+
+  .unlock-hint {
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-left: 4px solid #4a90e2;
+    background-color: rgba(74, 144, 226, 0.05);
+    border-radius: 0.25rem;
+    opacity: 1;
+    transition: opacity 0.3s ease-out;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .unlock-hint {
+      background-color: rgba(74, 144, 226, 0.1);
+      border-left-color: #6ba3f5;
+    }
+  }
+
+  .unlock-hint p {
+    margin: 0;
+    color: #4a90e2;
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .unlock-hint p {
+      color: #6ba3f5;
+    }
+  }
+
+  .unlock-hint.hidden {
+    display: none;
+    opacity: 0;
+  }
+
+  .unlock-content {
+    position: relative;
+  }
+</style>
