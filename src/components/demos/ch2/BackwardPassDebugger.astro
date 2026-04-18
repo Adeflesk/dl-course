@@ -1,0 +1,357 @@
+---
+interface Props {
+  demoId?: string;
+}
+
+const { demoId = 'ch2-backward-debugger' } = Astro.props;
+---
+
+<div class="backward-debugger" id={demoId}>
+  <div class="debugger-header">
+    <h4>Backward Pass Debugger</h4>
+    <p class="subtitle">See how gradients flow backward through the computation graph via the chain rule</p>
+  </div>
+
+  <div class="debugger-canvas">
+    <canvas id="backward-canvas" width="700" height="400"></canvas>
+  </div>
+
+  <div class="debugger-controls">
+    <button id="step-forward-btn" class="btn btn-primary">Execute Forward Pass</button>
+    <button id="step-backward-btn" class="btn btn-secondary">Execute Backward Pass</button>
+    <button id="reset-btn" class="btn btn-outline">Reset</button>
+    <span id="step-info">Ready</span>
+  </div>
+
+  <div class="debugger-table">
+    <table>
+      <thead>
+        <tr>
+          <th>Node</th>
+          <th>Value</th>
+          <th>Gradient (∂L/∂)</th>
+        </tr>
+      </thead>
+      <tbody id="debug-tbody">
+        <tr>
+          <td colspan="3" style="text-align: center; color: #999;">Execute forward pass to begin</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="explanation">
+    <h5>Understanding the Backward Pass</h5>
+    <p><strong>Forward Pass:</strong> Compute the function value by passing x through operations.</p>
+    <p><strong>Backward Pass:</strong> Compute gradients by applying the chain rule in reverse:
+      <code>∂L/∂x = (∂L/∂y) × (∂y/∂x)</code>
+    </p>
+    <p>The gradient at each node tells you how much the loss would change if you changed that value slightly.</p>
+  </div>
+</div>
+
+<style>
+.backward-debugger {
+  padding: 1.5rem;
+  background: #f5f9ff;
+  border: 2px solid #4a90e2;
+  border-radius: 8px;
+  margin: 2rem 0;
+}
+
+.debugger-header h4 {
+  margin: 0 0 0.5rem 0;
+  color: #4a90e2;
+  font-size: 1.1rem;
+}
+
+.subtitle {
+  margin: 0 0 1.5rem 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.debugger-canvas {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+}
+
+canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.debugger-controls {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.btn {
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: background 0.2s;
+}
+
+.btn-primary {
+  background: #4a90e2;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #2e5aa0;
+}
+
+.btn-secondary {
+  background: #ff6b6b;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background: #e55555;
+}
+
+.btn-outline {
+  background: transparent;
+  border: 2px solid #ddd;
+  color: #666;
+}
+
+.btn-outline:hover {
+  border-color: #999;
+  background: #f9f9f9;
+}
+
+#step-info {
+  margin-left: auto;
+  font-family: monospace;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.debugger-table {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+thead {
+  background: #f5f5f5;
+}
+
+th,
+td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+th {
+  font-weight: 600;
+  color: #333;
+}
+
+td {
+  font-family: monospace;
+  color: #666;
+}
+
+tbody tr:hover {
+  background: #f9f9f9;
+}
+
+.explanation {
+  background: #fffbf0;
+  border-left: 3px solid #ff9800;
+  padding: 1rem;
+  border-radius: 4px;
+}
+
+.explanation h5 {
+  margin: 0 0 0.75rem 0;
+  color: #ff9800;
+}
+
+.explanation p {
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #666;
+}
+
+code {
+  background: #f0f0f0;
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  font-family: monospace;
+  color: #333;
+}
+
+@media (prefers-color-scheme: dark) {
+  .backward-debugger {
+    background: #1a2a3a;
+    border-color: #4a90e2;
+  }
+
+  .subtitle {
+    color: #aaa;
+  }
+
+  .debugger-canvas {
+    background: #1e1e1e;
+    border-color: #333;
+  }
+
+  thead {
+    background: #2a3a4a;
+  }
+
+  th {
+    color: #f0f0f0;
+  }
+
+  td {
+    color: #aaa;
+  }
+
+  tbody tr:hover {
+    background: #2a3a4a;
+  }
+
+  .btn-outline {
+    border-color: #444;
+    color: #aaa;
+  }
+
+  .btn-outline:hover {
+    border-color: #666;
+    background: #2a2a2a;
+  }
+
+  #step-info {
+    color: #aaa;
+  }
+
+  .explanation {
+    background: #2a2514;
+    border-color: #ff9800;
+  }
+
+  .explanation h5 {
+    color: #ffb74d;
+  }
+
+  .explanation p {
+    color: #bbb;
+  }
+
+  code {
+    background: #333;
+    color: #ccc;
+  }
+}
+</style>
+
+<script>
+  import { BackwardPassDebugger } from '../../js/demos/ch2/backward-pass-debugger';
+  import { FUNCTIONS, FunctionType } from '../../js/demos/ch2/derivative-visualizer';
+
+  const canvas = document.getElementById('backward-canvas') as HTMLCanvasElement;
+  const forwardBtn = document.getElementById('step-forward-btn') as HTMLButtonElement;
+  const backwardBtn = document.getElementById('step-backward-btn') as HTMLButtonElement;
+  const resetBtn = document.getElementById('reset-btn') as HTMLButtonElement;
+  const stepInfo = document.getElementById('step-info') as HTMLElement;
+  const tbody = document.getElementById('debug-tbody') as HTMLTableSectionElement;
+
+  const debugger = new BackwardPassDebugger('backward-canvas');
+
+  // Example: x² function at x=2
+  debugger.selectedFunction = 'x2' as FunctionType;
+  debugger.currentX = 2.0;
+
+  let hasExecutedForward = false;
+  let hasExecutedBackward = false;
+
+  function updateTable() {
+    const tableData = debugger.getTableData();
+    tbody.innerHTML = '';
+
+    for (const row of tableData) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${row.label}</td>
+        <td>${row.value}</td>
+        <td>${row.gradient}</td>
+      `;
+      tbody.appendChild(tr);
+    }
+  }
+
+  function renderGraph() {
+    debugger.drawGraph();
+  }
+
+  forwardBtn.addEventListener('click', () => {
+    debugger.buildGraph();
+    renderGraph();
+    updateTable();
+    hasExecutedForward = true;
+    backwardBtn.disabled = false;
+    stepInfo.textContent = 'Forward pass complete. Now execute backward pass.';
+
+    // Trigger unlock on first interaction
+    localStorage.setItem('unlock_ch2_advanced', 'true');
+    window.dispatchEvent(
+      new CustomEvent('unlock', { detail: { featureId: 'ch2_advanced' } })
+    );
+  });
+
+  backwardBtn.addEventListener('click', () => {
+    if (!hasExecutedForward) {
+      alert('Execute forward pass first!');
+      return;
+    }
+    debugger.backpropagate();
+    renderGraph();
+    updateTable();
+    hasExecutedBackward = true;
+    stepInfo.textContent = 'Backward pass complete. Gradients have been propagated.';
+  });
+
+  resetBtn.addEventListener('click', () => {
+    hasExecutedForward = false;
+    hasExecutedBackward = false;
+    backwardBtn.disabled = true;
+    stepInfo.textContent = 'Ready';
+    tbody.innerHTML =
+      '<tr><td colspan="3" style="text-align: center; color: #999;">Execute forward pass to begin</td></tr>';
+
+    const canvas = document.getElementById('backward-canvas') as HTMLCanvasElement;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  });
+
+  // Initial state: disable backward button
+  backwardBtn.disabled = true;
+</script>
