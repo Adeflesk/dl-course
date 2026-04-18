@@ -6,7 +6,13 @@
 
 **Architecture:** Unlock-driven UX with LocalStorage persistence. Chapter 2 starts with visual derivatives, unlocks backward-pass debugging on first interaction. Chapter 3 starts with convergence races, progressively unlocks loss landscapes, weight tracking, and hyperparameter tuning. All visualization uses pre-computed trajectories (no live WASM needed).
 
-**Tech Stack:** Astro, TypeScript, Canvas API, Plotly.js (2D), Three.js (3D), LocalStorage for unlock state.
+**Tech Stack:** Astro, TypeScript, Canvas API, Plotly.js (2D), Three.js (3D), localStorage for unlock state.
+
+**Architecture Patterns:** 
+- **Component hierarchy:** Use `<UnlockManager>` wrapper + `<slot />` for progressive disclosure (not React conditionals)
+- **State management:** `unlock-state.ts` + localStorage (no React hooks)
+- **Unlock triggers:** Explicit user actions (buttons, form submission) — not time-based
+- **Canvas utilities:** Shared helpers in `src/js/demos/utils/canvas-helpers.ts` to avoid duplication
 
 ---
 
@@ -35,6 +41,7 @@ src/
       utils/
         unlock-state.ts                    [~60 lines, LocalStorage hooks]
         trajectory-loader.ts               [~50 lines, load JSON trajectories]
+        canvas-helpers.ts                  [~100 lines, shared canvas utilities]
       ch2/
         derivative-visualizer.ts           [~150 lines, canvas rendering + math]
         backward-pass-debugger.ts          [~180 lines, graph execution + visualization]
