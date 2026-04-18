@@ -7,6 +7,8 @@ description: "Computation graphs, chain rule, and topological sort backward pass
 import CodeSnippet from '../../components/CodeSnippet.astro';
 import APIReference from '../../components/APIReference.astro';
 import DerivativeVisualizer from '../../components/demos/ch2/DerivativeVisualizer.astro';
+import BackwardPassDebugger from '../../components/demos/ch2/BackwardPassDebugger.astro';
+import UnlockManager from '../../components/demos/shared/UnlockManager.astro';
 
 To train a neural network, you need to know how much each weight contributed to the loss. That means computing the partial derivative of the loss with respect to every weight. Automatic differentiation (autodiff) does this exactly — not numerically, not symbolically, but by tracing the computation and applying the chain rule backward through it.
 
@@ -43,6 +45,20 @@ In a computation graph, each operation only needs to know its **local gradient**
 For multiplication $z = x \cdot w$:
 - $\frac{\partial z}{\partial x} = w$, so $\text{grad}\_x = \text{grad}\_z \cdot w$
 - $\frac{\partial z}{\partial w} = x$, so $\text{grad}\_w = \text{grad}\_z \cdot x$
+
+## Interactive: Watch Gradients Flow Backward
+
+Now let's see the chain rule in action. The backward pass debugger shows exactly how gradients propagate backward through a computation graph:
+
+<UnlockManager featureId="ch2_advanced" triggerText="Ready to explore the backward pass? Click 'Execute Forward Pass' to begin →">
+  <BackwardPassDebugger demoId="ch2-backward-debugger" />
+</UnlockManager>
+
+**What to try:**
+1. Click "Execute Forward Pass" to compute the function value and build the graph
+2. Click "Execute Backward Pass" to see gradients propagate backward
+3. Watch the gradient at each node update as the chain rule multiplies them together
+4. The final gradient at x tells you: "if I change x by a tiny amount, the loss changes by this much"
 
 ## Topological sort
 

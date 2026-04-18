@@ -273,8 +273,8 @@ code {
 </style>
 
 <script>
-  import { BackwardPassDebugger } from '../../js/demos/ch2/backward-pass-debugger';
-  import { FUNCTIONS, FunctionType } from '../../js/demos/ch2/derivative-visualizer';
+  import { BackwardPassDebugger } from '../../../js/demos/ch2/backward-pass-debugger';
+  import { FUNCTIONS, FunctionType } from '../../../js/demos/ch2/derivative-visualizer';
 
   const canvas = document.getElementById('backward-canvas') as HTMLCanvasElement;
   const forwardBtn = document.getElementById('step-forward-btn') as HTMLButtonElement;
@@ -283,17 +283,17 @@ code {
   const stepInfo = document.getElementById('step-info') as HTMLElement;
   const tbody = document.getElementById('debug-tbody') as HTMLTableSectionElement;
 
-  const debugger = new BackwardPassDebugger('backward-canvas');
+  const viz = new BackwardPassDebugger('backward-canvas');
 
   // Example: x² function at x=2
-  debugger.selectedFunction = 'x2' as FunctionType;
-  debugger.currentX = 2.0;
+  viz.selectedFunction = 'x2' as FunctionType;
+  viz.currentX = 2.0;
 
   let hasExecutedForward = false;
   let hasExecutedBackward = false;
 
   function updateTable() {
-    const tableData = debugger.getTableData();
+    const tableData = viz.getTableData();
     tbody.innerHTML = '';
 
     for (const row of tableData) {
@@ -308,11 +308,11 @@ code {
   }
 
   function renderGraph() {
-    debugger.drawGraph();
+    viz.drawGraph();
   }
 
   forwardBtn.addEventListener('click', () => {
-    debugger.buildGraph();
+    viz.buildGraph();
     renderGraph();
     updateTable();
     hasExecutedForward = true;
@@ -331,7 +331,7 @@ code {
       alert('Execute forward pass first!');
       return;
     }
-    debugger.backpropagate();
+    viz.backpropagate();
     renderGraph();
     updateTable();
     hasExecutedBackward = true;
