@@ -9,14 +9,27 @@ export interface UnlockState {
 
 /**
  * Hook for managing unlock state with localStorage persistence
- * @param featureId - Unique identifier for the feature
+ * @param featureId - Unique identifier for the feature. Must be a non-empty string.
+ *                    Invalid featureIds (empty strings, non-string values) will throw an error.
+ *                    Valid featureIds contain only alphanumeric characters, hyphens, and underscores.
  * @param defaultUnlocked - Default unlocked state if not in localStorage
  * @returns Object with isUnlocked, unlock, reset, and subscribe methods
+ * @throws Error if featureId is invalid
  */
 export function useUnlockState(
   featureId: string,
   defaultUnlocked: boolean = false
 ): UnlockState {
+  // Validate featureId parameter
+  if (typeof featureId !== 'string' || featureId.trim().length === 0) {
+    throw new Error('featureId must be a non-empty string');
+  }
+
+  // Validate that featureId is a safe string (alphanumeric, hyphens, underscores)
+  if (!/^[a-zA-Z0-9_-]+$/.test(featureId)) {
+    throw new Error('featureId must contain only alphanumeric characters, hyphens, and underscores');
+  }
+
   const storageKey = `unlock_${featureId}`;
   const listeners: Set<UnlockStateListener> = new Set();
 

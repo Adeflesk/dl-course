@@ -24,36 +24,37 @@ const {
 <script define:vars={{ featureId, defaultUnlocked }}>
   import { useUnlockState } from '../../../js/demos/utils/unlock-state';
 
-  // Initialize unlock state for this feature
-  const unlockState = useUnlockState(featureId, defaultUnlocked);
-  const hintElement = document.querySelector(
-    `[data-feature-id="${featureId}"] .unlock-hint`
-  );
-
-  // Check if already unlocked and hide hint if so
-  if (unlockState.isUnlocked()) {
-    if (hintElement) {
-      hintElement.classList.add('hidden');
+  // Helper function to hide the unlock hint element
+  function hideUnlockHint(fId: string): void {
+    const hint = document.querySelector(
+      `[data-feature-id="${fId}"] .unlock-hint`
+    );
+    if (hint) {
+      hint.classList.add('hidden');
     }
   }
 
-  // Listen for unlock events (both from subscribe and custom events)
+  // Initialize unlock state for this feature
+  const unlockState = useUnlockState(featureId, defaultUnlocked);
+
+  // Check if already unlocked and hide hint if so
+  if (unlockState.isUnlocked()) {
+    hideUnlockHint(featureId);
+  }
+
+  // Listen for unlock events via subscription
   unlockState.subscribe(() => {
-    if (hintElement) {
-      hintElement.classList.add('hidden');
-    }
+    hideUnlockHint(featureId);
   });
 
   // Also listen for custom unlock events from other parts of the app
   window.addEventListener('unlock', (event) => {
     if (event.detail && event.detail.featureId === featureId) {
-      if (hintElement) {
-        hintElement.classList.add('hidden');
-      }
+      hideUnlockHint(featureId);
     }
   });
 
-  // Make unlock state available globally if needed
+  // Make unlock state available globally for direct access if needed
   window.__unlockStates = window.__unlockStates || {};
   window.__unlockStates[featureId] = unlockState;
 </script>

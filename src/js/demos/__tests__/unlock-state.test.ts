@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useUnlockState } from '../utils/unlock-state';
 
 // Mock localStorage for testing
@@ -83,20 +83,17 @@ describe('useUnlockState', () => {
 
   it('supports subscription listeners for unlock events', () => {
     const { unlock, subscribe } = useUnlockState(testFeatureId, false);
-    const listener = { called: false };
+    const mockListener = vi.fn();
 
-    const unsubscribe = subscribe(() => {
-      listener.called = true;
-    });
+    const unsubscribe = subscribe(mockListener);
 
     unlock();
-    expect(listener.called).toBe(true);
+    expect(mockListener).toHaveBeenCalledTimes(1);
 
     // Unsubscribe should work
     unsubscribe();
-    listener.called = false;
     unlock(); // This should not trigger the listener again
-    expect(listener.called).toBe(false);
+    expect(mockListener).toHaveBeenCalledTimes(1);
   });
 
   it('maintains separate state for different feature IDs', () => {
@@ -109,5 +106,57 @@ describe('useUnlockState', () => {
     expect(feature2.isUnlocked()).toBe(false);
     expect(localStorage.getItem('unlock_feature-1')).toBe('true');
     expect(localStorage.getItem('unlock_feature-2')).toBeNull();
+  });
+
+  it('validates featureId - rejects empty strings', () => {
+    expect(() => {
+      useUnlockState('', false);
+    }).toThrow('featureId must be a non-empty string');
+
+    expect(() => {
+      useUnlockState('   ', false);
+    }).toThrow('featureId must be a non-empty string');
+  });
+
+  it('validates featureId - rejects invalid characters', () => {
+    expect(() => {
+      useUnlockState('feature@id', false);
+    }).toThrow('featureId must contain only alphanumeric characters, hyphens, and underscores');
+
+    expect(() => {
+      useUnlockState('feature id', false);
+    }).toThrow('featureId must contain only alphanumeric characters, hyphens, and underscores');
+
+    expect(() => {
+      useUnlockState('feature.id', false);
+    }).toThrow('featureId must contain only alphanumeric characters, hyphens, and underscores');
+  });
+
+  it('validates featureId - accepts valid formats', () => {
+    expect(() => {
+      useUnlockState('feature-id', false);
+    }).not.toThrow();
+
+    expect(() => {
+      useUnlockState('feature_id', false);
+    }).not.toThrow();
+
+    expect(() => {
+      useUnlockState('featureId123', false);
+    }).not.toThrow();
+  });
+
+  it('is idempotent - calling unlock() twice fires listener only once', () => {
+    const { unlock, subscribe } = useUnlockState(testFeatureId, false);
+    const mockListener = vi.fn();
+
+    subscribe(mockListener);
+
+    // Call unlock twice
+    unlock();
+    unlock();
+
+    // Listener should only be called once (on first unlock)
+    expect(mockListener).toHaveBeenCalledTimes(1);
   });
 });

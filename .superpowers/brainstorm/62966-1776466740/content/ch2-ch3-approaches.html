@@ -1,0 +1,34 @@
+<h2>Demo Architecture: 2-3 Approaches</h2>
+<p class="subtitle">How should we organize the Ch 2-3 interactive demos?</p>
+
+<div class="options">
+  <div class="option" data-choice="approach-a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Integrated Playground (All-in-One)</h3>
+      <p><strong>Ch 2:</strong> Backward Pass Debugger + Derivative Visualizer in one space with shared examples</p>
+      <p><strong>Ch 3:</strong> Single "Optimizer Playground" with loss landscape, weight updates, convergence race, and metrics all visible together</p>
+      <p><em>Pros:</em> Holistic learning, see relationships between concepts. <em>Cons:</em> Complex UI, may overwhelm at first.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="approach-b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Modular Tabs (Focused Views)</h3>
+      <p><strong>Ch 2:</strong> Tab 1: Backward Pass Debugger | Tab 2: Derivative Visualizer</p>
+      <p><strong>Ch 3:</strong> Tab 1: Loss Landscape Explorer | Tab 2: Weight Update Viz | Tab 3: Convergence Race | Tab 4: Optimizer Tuner</p>
+      <p><em>Pros:</em> Clean, focused. Easier to understand each concept. <em>Cons:</em> Less context switching between tabs, may miss relationships.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="approach-c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Progressive Disclosure (Learn Then Explore)</h3>
+      <p><strong>Ch 2:</strong> Start with simple Derivative Visualizer, then unlock Backward Pass Debugger after interaction</p>
+      <p><strong>Ch 3:</strong> Convergence Race first (simplest), then unlock Loss Landscape and Weight Updates as users adjust parameters</p>
+      <p><em>Pros:</em> Guided learning, less cognitive load initially. <em>Cons:</em> Users may want advanced features immediately.</p>
+    </div>
+  </div>
+</div>
