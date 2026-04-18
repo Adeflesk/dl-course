@@ -1,0 +1,87 @@
+{
+  "optimizer": "sgd",
+  "learningRate": 0.05,
+  "momentum": 0,
+  "steps": [
+    {
+      "iteration": 0,
+      "loss": 10,
+      "x": -5,
+      "y": 5,
+      "weights": [
+        -5,
+        5
+      ]
+    },
+    {
+      "iteration": 1,
+      "loss": 10,
+      "x": -5,
+      "y": 5,
+      "weights": [
+        -5,
+        5
+      ]
+    },
+    {
+      "iteration": 2,
+      "loss": 10,
+      "x": -5,
+      "y": 5,
+      "weights": [
+        -5,
+        5
+      ]
+    },
+    {
+      "iteration": 5,
+      "loss": 10,
+      "x": -5,
+      "y": 5,
+      "weights": [
+        -5,
+        5
+      ]
+    },
+    {
+      "iteration": 10,
+      "loss": 10,
+      "x": -5,
+      "y": 5,
+      "weights": [
+        -5,
+        5
+      ]
+    },
+    {
+      "iteration": 20,
+      "loss": 10,
+      "x": -5,
+      "y": 5,
+      "weights": [
+        -5,
+        5
+      ]
+    },
+    {
+      "iteration": 50,
+      "loss": 10,
+      "x": -5,
+      "y": 5,
+      "weights": [
+        -5,
+        5
+      ]
+    },
+    {
+      "iteration": 100,
+      "loss": 10,
+      "x": -5,
+      "y": 5,
+      "weights": [
+        -5,
+        5
+      ]
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "problems": [
+    {
+      "id": "quadratic-bowl",
+      "name": "Quadratic Bowl",
+      "description": "Simple quadratic loss landscape: f(x,y) = x² + y². All optimizers converge rapidly to the origin.",
+      "difficulty": 1.0,
+      "trajectories": {
+        "sgd-0.01": "quadratic-bowl-sgd-lr0.01.json",
+        "sgd-0.05": "quadratic-bowl-sgd-lr0.05.json",
+        "sgd-0.1": "quadratic-bowl-sgd-lr0.1.json",
+        "adam-0.001": "quadratic-bowl-adam-lr0.001.json",
+        "adam-0.01": "quadratic-bowl-adam-lr0.01.json",
+        "adam-0.05": "quadratic-bowl-adam-lr0.05.json"
+      }
+    },
+    {
+      "id": "rosenbrock",
+      "name": "Rosenbrock Function",
+      "description": "Classic non-convex landscape: f(x,y) = (1-x)² + 100(y-x²)². SGD struggles in the valley, Adam escapes faster.",
+      "difficulty": 1.5,
+      "trajectories": {
+        "sgd-0.0001": "rosenbrock-sgd-lr0.0001.json",
+        "sgd-0.001": "rosenbrock-sgd-lr0.001.json",
+        "adam-0.001": "rosenbrock-adam-lr0.001.json",
+        "adam-0.01": "rosenbrock-adam-lr0.01.json"
+      }
+    },
+    {
+      "id": "spiral",
+      "name": "Spiral Landscape",
+      "description": "Multi-modal loss landscape with local minima. Adam navigates better than vanilla SGD.",
+      "difficulty": 1.7,
+      "trajectories": {
+        "sgd-0.05": "spiral-sgd-lr0.05.json",
+        "sgd-0.1": "spiral-sgd-lr0.1.json",
+        "adam-0.01": "spiral-adam-lr0.01.json",
+        "adam-0.05": "spiral-adam-lr0.05.json"
+      }
+    },
+    {
+      "id": "gaussian-mixture",
+      "name": "Gaussian Mixture (Noisy)",
+      "description": "High-noise landscape with gradient noise from stochastic sampling. Adam's adaptive learning rate handles noise better.",
+      "difficulty": 2.0,
+      "trajectories": {
+        "sgd-0.05": "gaussian-mixture-sgd-lr0.05.json",
+        "sgd-0.1": "gaussian-mixture-sgd-lr0.1.json",
+        "adam-0.01": "gaussian-mixture-adam-lr0.01.json",
+        "adam-0.05": "gaussian-mixture-adam-lr0.05.json"
+      }
+    }
+  ]
+}
