@@ -6,6 +6,9 @@ description: "Loss surfaces, SGD, learning rate, and Adam with bias correction"
 
 import CodeSnippet from '../../components/CodeSnippet.astro';
 import APIReference from '../../components/APIReference.astro';
+import ConvergenceRace from '../../components/demos/ch3/ConvergenceRace.astro';
+import CustomProblemBuilder from '../../components/demos/ch3/CustomProblemBuilder.astro';
+import UnlockManager from '../../components/demos/shared/UnlockManager.astro';
 
 Training a neural network means finding weights that minimize a loss function. The loss is a scalar that measures how wrong the model is. We want to move the weights in the direction that decreases it — that's gradient descent.
 
@@ -14,6 +17,17 @@ Training a neural network means finding weights that minimize a loss function. T
 Think of the loss as a surface in weight space. If your network has $n$ parameters, the surface lives in $n+1$ dimensions (parameters + loss value). You're standing at some point on this surface and want to find a valley.
 
 The **gradient** of the loss with respect to the weights points uphill — toward higher loss. To descend, move in the opposite direction.
+
+## Watch Optimizers Race
+
+Different optimizers navigate loss surfaces differently. SGD takes consistent steps. Adam adapts step size based on gradient history, often converging faster on challenging landscapes.
+
+<ConvergenceRace />
+
+Try switching between SGD and Adam on different problems. Notice how:
+- **Quadratic Bowl**: Both converge, but Adam often gets there faster
+- **Rosenbrock**: Adam escapes the flat valley better than vanilla SGD
+- **Spiral**: Adam handles multi-modal landscapes more gracefully
 
 ## Stochastic Gradient Descent
 
@@ -54,6 +68,20 @@ Vanilla SGD treats all parameters the same: same step size regardless of gradien
 - **Sparse gradients**: parameters that rarely receive gradient updates learn slowly.
 - **Saddle points**: gradient is near-zero but the point isn't a minimum. SGD stalls.
 - **Oscillation**: in ravine-shaped loss surfaces, SGD oscillates across the narrow dimension and creeps along the long dimension.
+
+## Explore Custom Landscapes
+
+Use the problem builder below to tune loss landscapes and watch how SGD and Adam handle them. Adjust parameters like scale, rotation, or noise to see how it affects optimizer trajectories.
+
+<UnlockManager featureId="ch3-custom-problem" triggerText="Create a custom optimization landscape...">
+  <CustomProblemBuilder />
+</UnlockManager>
+
+Try these experiments:
+- **Increase scale** on quadratic bowl to make the valley steeper
+- **Rotate the elliptical valley** to see how optimizers handle curved paths
+- **Add noise** to the quadratic to simulate stochastic gradients
+- Compare SGD and Adam trajectories on Rosenbrock — notice how Adam escapes the flat valley faster
 
 ## Adam
 
