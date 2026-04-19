@@ -1,0 +1,661 @@
+---
+// Custom Problem Builder Component
+// Foundation-level custom problem creation with parameter tuning
+//
+// Props:
+//   - demoId: Unique identifier for unlock state (default: 'ch3-custom-problem')
+
+interface Props {
+  demoId?: string;
+}
+
+const { demoId = 'ch3-custom-problem' } = Astro.props;
+---
+
+<div class="custom-problem-container">
+  <div class="problem-header">
+    <h2>Custom Problem Builder</h2>
+    <p class="subtitle">Create and tune optimization landscapes</p>
+  </div>
+
+  <div class="builder-layout">
+    <div class="builder-controls">
+      <div class="control-group">
+        <label for="problem-select">Problem Type:</label>
+        <select id="problem-select">
+          <option value="">Loading...</option>
+        </select>
+        <p class="problem-desc" id="problem-desc"></p>
+      </div>
+
+      <div id="param-sliders" class="param-sliders"></div>
+
+      <button id="visualize-btn" disabled>Visualize Landscape</button>
+    </div>
+
+    <div class="landscape-container">
+      <div id="landscape-plot" class="landscape-plot">
+        <p>Select a problem and adjust parameters to see the landscape</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="trajectory-section" class="trajectory-section hidden">
+    <h3>Optimizer Test Run</h3>
+    <div class="trajectory-controls">
+      <div class="control-group">
+        <label for="traj-optimizer">Optimizer:</label>
+        <select id="traj-optimizer">
+          <option value="sgd">SGD</option>
+          <option value="adam" selected>Adam</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="traj-lr">Learning Rate:</label>
+        <input
+          id="traj-lr"
+          type="number"
+          min="0.0001"
+          max="1"
+          step="0.0001"
+          value="0.1"
+        />
+      </div>
+
+      <button id="run-trajectory-btn">Run Optimizer</button>
+    </div>
+
+    <div id="trajectory-plot" class="trajectory-plot"></div>
+  </div>
+</div>
+
+<script define:vars={{ demoId }}>
+  import { CustomProblemBuilder } from '../../../js/demos/ch3/custom-problem-builder';
+
+  class CustomProblemBuilderDemo {
+    constructor() {
+      this.builder = new CustomProblemBuilder();
+      this.problemSelect = document.getElementById('problem-select');
+      this.problemDesc = document.getElementById('problem-desc');
+      this.paramSliders = document.getElementById('param-sliders');
+      this.visualizeBtn = document.getElementById('visualize-btn');
+      this.landscapePlot = document.getElementById('landscape-plot');
+      this.trajectorySection = document.getElementById('trajectory-section');
+      this.trajOptimizer = document.getElementById('traj-optimizer');
+      this.trajLr = document.getElementById('traj-lr');
+      this.runTrajBtn = document.getElementById('run-trajectory-btn');
+      this.trajectoryPlot = document.getElementById('trajectory-plot');
+
+      this.currentProblemId = null;
+      this.currentParams = {};
+      this.isDarkMode =
+        window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      this.firstInteraction = true;
+
+      this.init();
+    }
+
+    init() {
+      const problems = this.builder.listProblems();
+      this.populateProblems(problems);
+      this.attachEventListeners();
+
+      if (problems.length > 0) {
+        this.currentProblemId = problems[0].id;
+        this.problemSelect.value = this.currentProblemId;
+        this.updateProblemUI();
+        this.visualizeBtn.disabled = false;
+      }
+    }
+
+    populateProblems(problems) {
+      this.problemSelect.innerHTML = problems
+        .map((p) => `<option value="${p.id}">${p.name}</option>`)
+        .join('');
+    }
+
+    attachEventListeners() {
+      this.problemSelect.addEventListener('change', (e) => {
+        this.currentProblemId = e.target.value;
+        this.updateProblemUI();
+        this.triggerFirstInteraction();
+      });
+
+      this.visualizeBtn.addEventListener('click', () => this.visualizeLandscape());
+      this.runTrajBtn.addEventListener('click', () => this.runTrajectory());
+    }
+
+    updateProblemUI() {
+      const problem = this.builder.getProblemDefinition(this.currentProblemId);
+      this.problemDesc.textContent = problem.description;
+
+      // Reset to default params
+      this.currentParams = { ...problem.defaultParams };
+
+      // Create parameter sliders
+      this.paramSliders.innerHTML = '';
+      const params = problem.paramRanges;
+
+      const createSlider = (paramName, range, defaultValue) => {
+        const div = document.createElement('div');
+        div.className = 'control-group';
+
+        const label = document.createElement('label');
+        label.textContent = `${paramName}: `;
+
+        const input = document.createElement('input');
+        input.type = 'range';
+        input.className = 'param-slider';
+        input.min = range[0];
+        input.max = range[1];
+        input.step = (range[1] - range[0]) / 100;
+        input.value = defaultValue;
+        input.dataset.param = paramName.toLowerCase();
+
+        const valueDisplay = document.createElement('span');
+        valueDisplay.className = 'param-value';
+        valueDisplay.textContent = parseFloat(defaultValue).toFixed(3);
+
+        input.addEventListener('input', (e) => {
+          const val = parseFloat(e.target.value);
+          this.currentParams[paramName.toLowerCase()] = val;
+          valueDisplay.textContent = val.toFixed(3);
+        });
+
+        label.appendChild(input);
+        label.appendChild(valueDisplay);
+        div.appendChild(label);
+        this.paramSliders.appendChild(div);
+      };
+
+      createSlider('scale', params.scale, problem.defaultParams.scale);
+
+      if (params.rotation) {
+        createSlider('rotation', params.rotation, problem.defaultParams.rotation || 0);
+      }
+
+      if (params.noise) {
+        createSlider('noise', params.noise, problem.defaultParams.noise || 0);
+      }
+    }
+
+    async visualizeLandscape() {
+      try {
+        this.visualizeBtn.disabled = true;
+        this.landscapePlot.innerHTML = '<p>Computing landscape...</p>';
+
+        const problem = this.builder.getProblemDefinition(this.currentProblemId);
+        const landscape = this.builder.computeLandscape(
+          this.currentProblemId,
+          this.currentParams,
+          [-3, 3],
+          [-3, 3],
+          40
+        );
+
+        const trace = {
+          x: landscape.x,
+          y: landscape.y,
+          z: landscape.z,
+          type: 'contour',
+          colorscale: this.isDarkMode ? 'Viridis' : 'Jet',
+          contours: {
+            showlabels: true,
+            labelfont: { size: 10 },
+          },
+          colorbar: {
+            thickness: 15,
+            len: 0.7,
+            tickfont: { color: this.isDarkMode ? '#e5e7eb' : '#1f2937' },
+          },
+        };
+
+        const layout = {
+          title: `${problem.name} Landscape`,
+          xaxis: {
+            title: 'x',
+            gridcolor: this.isDarkMode ? '#404040' : '#e5e7eb',
+          },
+          yaxis: {
+            title: 'y',
+            gridcolor: this.isDarkMode ? '#404040' : '#e5e7eb',
+          },
+          plot_bgcolor: this.isDarkMode ? '#1f2937' : '#ffffff',
+          paper_bgcolor: this.isDarkMode ? '#111827' : '#ffffff',
+          font: { color: this.isDarkMode ? '#e5e7eb' : '#1f2937' },
+          margin: { l: 60, r: 80, t: 40, b: 60 },
+        };
+
+        const Plotly = await import('plotly.js-dist-min');
+        this.landscapePlot.innerHTML = '';
+        await Plotly.newPlot(this.landscapePlot, [trace], layout, { responsive: true });
+
+        // Show trajectory section
+        this.trajectorySection.classList.remove('hidden');
+      } catch (error) {
+        console.error('Error visualizing landscape:', error);
+        this.landscapePlot.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+      } finally {
+        this.visualizeBtn.disabled = false;
+      }
+    }
+
+    async runTrajectory() {
+      try {
+        this.runTrajBtn.disabled = true;
+        this.trajectoryPlot.innerHTML = '<p>Computing trajectory...</p>';
+
+        const optimizer = this.trajOptimizer.value;
+        const learningRate = parseFloat(this.trajLr.value);
+
+        const trajectory = this.builder.computeTrajectory(
+          this.currentProblemId,
+          this.currentParams,
+          optimizer,
+          learningRate,
+          2.0,
+          2.0,
+          100
+        );
+
+        const problem = this.builder.getProblemDefinition(this.currentProblemId);
+        const landscape = this.builder.computeLandscape(
+          this.currentProblemId,
+          this.currentParams,
+          [-3, 3],
+          [-3, 3],
+          40
+        );
+
+        // Background contour
+        const contourTrace = {
+          x: landscape.x,
+          y: landscape.y,
+          z: landscape.z,
+          type: 'contour',
+          colorscale: this.isDarkMode ? 'Viridis' : 'Jet',
+          showscale: false,
+          contours: { showlabels: false },
+          opacity: 0.6,
+        };
+
+        // Trajectory overlay
+        const trajectoryTrace = {
+          x: trajectory.map((p) => p.x),
+          y: trajectory.map((p) => p.y),
+          mode: 'lines+markers',
+          name: `${optimizer.toUpperCase()} (lr=${learningRate})`,
+          line: {
+            color: optimizer === 'adam'
+              ? this.isDarkMode
+                ? '#f87171'
+                : '#dc2626'
+              : this.isDarkMode
+              ? '#60a5fa'
+              : '#2563eb',
+            width: 2,
+          },
+          marker: { size: 4, opacity: 0.7 },
+          hovertemplate: 'x: %{x:.3f}<br>y: %{y:.3f}<extra></extra>',
+        };
+
+        const layout = {
+          title: `${problem.name} - ${optimizer.toUpperCase()} Trajectory (lr=${learningRate})`,
+          xaxis: {
+            title: 'x',
+            gridcolor: this.isDarkMode ? '#404040' : '#e5e7eb',
+          },
+          yaxis: {
+            title: 'y',
+            gridcolor: this.isDarkMode ? '#404040' : '#e5e7eb',
+          },
+          plot_bgcolor: this.isDarkMode ? '#1f2937' : '#ffffff',
+          paper_bgcolor: this.isDarkMode ? '#111827' : '#ffffff',
+          font: { color: this.isDarkMode ? '#e5e7eb' : '#1f2937' },
+          hovermode: 'closest',
+          margin: { l: 60, r: 20, t: 40, b: 60 },
+        };
+
+        const Plotly = await import('plotly.js-dist-min');
+        this.trajectoryPlot.innerHTML = '';
+        await Plotly.newPlot(
+          this.trajectoryPlot,
+          [contourTrace, trajectoryTrace],
+          layout,
+          { responsive: true }
+        );
+      } catch (error) {
+        console.error('Error running trajectory:', error);
+        this.trajectoryPlot.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+      } finally {
+        this.runTrajBtn.disabled = false;
+      }
+    }
+
+    triggerFirstInteraction() {
+      if (this.firstInteraction) {
+        window.dispatchEvent(
+          new CustomEvent('unlock', {
+            detail: { featureId: demoId },
+          })
+        );
+        this.firstInteraction = false;
+      }
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      new CustomProblemBuilderDemo();
+    });
+  } else {
+    new CustomProblemBuilderDemo();
+  }
+</script>
+
+<style>
+  .custom-problem-container {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+  }
+
+  .problem-header {
+    text-align: center;
+  }
+
+  .problem-header h2 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+
+  .subtitle {
+    margin: 0;
+    color: #666;
+    font-size: 0.95rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .subtitle {
+      color: #aaa;
+    }
+  }
+
+  .builder-layout {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 2rem;
+    align-items: start;
+  }
+
+  @media (max-width: 900px) {
+    .builder-layout {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .builder-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 1.5rem;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    height: fit-content;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .builder-controls {
+      background: #1f2937;
+      border-color: #374151;
+    }
+  }
+
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .control-group label {
+    font-weight: 500;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  select,
+  input[type='number'] {
+    padding: 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    background: white;
+    color: #1f2937;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    select,
+    input[type='number'] {
+      background: #374151;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+  }
+
+  .param-slider {
+    flex: 1;
+    cursor: pointer;
+    height: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: #d1d5db;
+    border-radius: 5px;
+    outline: none;
+  }
+
+  .param-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    background: #2563eb;
+    border-radius: 50%;
+    cursor: pointer;
+  }
+
+  .param-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    background: #2563eb;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .param-slider {
+      background: #4b5563;
+    }
+
+    .param-slider::-webkit-slider-thumb {
+      background: #3b82f6;
+    }
+
+    .param-slider::-moz-range-thumb {
+      background: #3b82f6;
+    }
+  }
+
+  .param-value {
+    margin-left: auto;
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 0.85rem;
+    color: #666;
+    min-width: 50px;
+    text-align: right;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .param-value {
+      color: #aaa;
+    }
+  }
+
+  .problem-desc {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #666;
+    line-height: 1.4;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .problem-desc {
+      color: #aaa;
+    }
+  }
+
+  button {
+    padding: 0.75rem 1.5rem;
+    background: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+    font-size: 0.95rem;
+  }
+
+  button:hover:not(:disabled) {
+    background: #1d4ed8;
+  }
+
+  button:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    button {
+      background: #3b82f6;
+    }
+
+    button:hover:not(:disabled) {
+      background: #2563eb;
+    }
+  }
+
+  .landscape-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .landscape-plot {
+    min-height: 400px;
+    padding: 2rem;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .landscape-plot {
+      background: #1f2937;
+      border-color: #374151;
+      color: #aaa;
+    }
+  }
+
+  .trajectory-section {
+    padding: 1.5rem;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+  }
+
+  .trajectory-section.hidden {
+    display: none;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .trajectory-section {
+      background: #1f2937;
+      border-color: #374151;
+    }
+  }
+
+  .trajectory-section h3 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+
+  .trajectory-controls {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  .trajectory-controls .control-group {
+    min-width: 180px;
+  }
+
+  .trajectory-plot {
+    min-height: 400px;
+    padding: 2rem;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .trajectory-plot {
+      background: #111827;
+      border-color: #374151;
+    }
+  }
+
+  .error {
+    color: #dc2626;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .error {
+      color: #ef4444;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .problem-header h2 {
+      font-size: 1.25rem;
+    }
+
+    .custom-problem-container {
+      gap: 1.5rem;
+      margin: 1rem auto;
+    }
+
+    .trajectory-controls {
+      flex-direction: column;
+    }
+
+    .trajectory-controls .control-group {
+      min-width: 100%;
+    }
+  }
+</style>
