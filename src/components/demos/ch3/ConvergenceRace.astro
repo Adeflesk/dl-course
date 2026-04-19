@@ -1,0 +1,517 @@
+---
+// Convergence Race Component
+// Foundation-level optimizer comparison (SGD vs Adam)
+//
+// Props:
+//   - demoId: Unique identifier for unlock state (default: 'ch3-convergence-race')
+
+interface Props {
+  demoId?: string;
+}
+
+const { demoId = 'ch3-convergence-race' } = Astro.props;
+---
+
+<div class="convergence-race-container">
+  <div class="race-header">
+    <h2>Optimizer Convergence Race</h2>
+    <p class="subtitle">Watch SGD and Adam race to minimize loss on different landscapes</p>
+  </div>
+
+  <div class="race-controls">
+    <div class="control-group">
+      <label for="problem-select">Problem Landscape:</label>
+      <select id="problem-select">
+        <option value="">Loading...</option>
+      </select>
+      <p class="problem-description" id="problem-description"></p>
+    </div>
+
+    <div class="control-group">
+      <label>Optimizers:</label>
+      <div class="optimizer-filters">
+        <label class="checkbox-label">
+          <input
+            type="checkbox"
+            class="optimizer-checkbox"
+            data-optimizer="sgd"
+            checked
+          />
+          SGD
+        </label>
+        <label class="checkbox-label">
+          <input
+            type="checkbox"
+            class="optimizer-checkbox"
+            data-optimizer="adam"
+            checked
+          />
+          Adam
+        </label>
+      </div>
+    </div>
+
+    <button id="race-button" disabled>Load Race</button>
+  </div>
+
+  <div id="plot-container" class="plot-placeholder">
+    <p>Select a problem and click "Load Race" to begin</p>
+  </div>
+
+  <div id="stats-container" class="stats-hidden">
+    <div class="stats-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Optimizer</th>
+            <th>Learning Rate</th>
+            <th>Final Loss</th>
+            <th>Steps to Converge</th>
+          </tr>
+        </thead>
+        <tbody id="stats-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script define:vars={{ demoId }}>
+  import { ConvergenceRace } from '../../../js/demos/ch3/convergence-race';
+
+  class ConvergenceRaceDemo {
+    constructor() {
+      this.race = new ConvergenceRace();
+      this.problemSelect = document.getElementById('problem-select');
+      this.problemDescription = document.getElementById('problem-description');
+      this.optimizerCheckboxes = document.querySelectorAll('.optimizer-checkbox');
+      this.raceButton = document.getElementById('race-button');
+      this.plotContainer = document.getElementById('plot-container');
+      this.statsContainer = document.getElementById('stats-container');
+      this.statsTbody = document.getElementById('stats-tbody');
+      this.currentTrajectories = [];
+      this.isDarkMode =
+        window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+      this.init();
+    }
+
+    async init() {
+      try {
+        const problems = await this.race.initializeProblems();
+        this.populateProblems(problems);
+        this.attachEventListeners();
+
+        // Load first problem by default
+        if (problems.size > 0) {
+          const firstProblemId = Array.from(problems.keys())[0];
+          this.problemSelect.value = firstProblemId;
+          this.updateProblemDescription(problems.get(firstProblemId));
+          this.raceButton.disabled = false;
+        }
+      } catch (error) {
+        console.error('Failed to initialize ConvergenceRace:', error);
+        this.plotContainer.innerHTML = `<p class="error">Error loading problems</p>`;
+      }
+    }
+
+    populateProblems(problems) {
+      this.problemSelect.innerHTML = Array.from(problems.values())
+        .map((p) => `<option value="${p.id}">${p.name}</option>`)
+        .join('');
+    }
+
+    attachEventListeners() {
+      this.problemSelect.addEventListener('change', (e) => {
+        const problems = new Map();
+        // Re-fetch to get the right problem object
+        this.race.initializeProblems().then((p) => {
+          const selected = p.get(e.target.value);
+          if (selected) {
+            this.updateProblemDescription(selected);
+          }
+        });
+      });
+
+      this.raceButton.addEventListener('click', () => this.runRace());
+
+      // Track first interaction for unlock
+      let firstInteraction = true;
+      this.problemSelect.addEventListener('change', () => {
+        if (firstInteraction) {
+          this.triggerUnlock();
+          firstInteraction = false;
+        }
+      });
+    }
+
+    updateProblemDescription(problem) {
+      this.problemDescription.textContent = problem.description;
+    }
+
+    async runRace() {
+      try {
+        this.raceButton.disabled = true;
+        this.plotContainer.innerHTML = '<p>Loading trajectories...</p>';
+
+        // Get selected optimizers
+        const selectedOptimizers = Array.from(this.optimizerCheckboxes)
+          .filter((cb) => cb.checked)
+          .map((cb) => cb.dataset.optimizer);
+
+        if (selectedOptimizers.length === 0) {
+          this.plotContainer.innerHTML = '<p>Select at least one optimizer</p>';
+          this.raceButton.disabled = false;
+          return;
+        }
+
+        // Get available keys for problem
+        const problemId = this.problemSelect.value;
+        const availableKeys = this.race.getAvailableKeys(problemId);
+
+        // Filter keys by selected optimizers
+        const selectedKeys = availableKeys.filter((key) =>
+          selectedOptimizers.some((opt) => key.includes(opt))
+        );
+
+        if (selectedKeys.length === 0) {
+          this.plotContainer.innerHTML =
+            '<p>No trajectories available for selected combination</p>';
+          this.raceButton.disabled = false;
+          return;
+        }
+
+        // Load trajectories
+        const trajectories = await this.race.loadTrajectories({
+          problemId,
+          selectedTrajectories: selectedKeys,
+        });
+
+        if (trajectories.length === 0) {
+          this.plotContainer.innerHTML = '<p>No trajectories loaded</p>';
+          this.raceButton.disabled = false;
+          return;
+        }
+
+        this.currentTrajectories = trajectories;
+
+        // Prepare and display plot
+        const { traces, layout } = this.race.preparePlotData(
+          trajectories,
+          this.isDarkMode
+        );
+
+        const plotDiv = document.createElement('div');
+        plotDiv.style.width = '100%';
+        plotDiv.style.height = '400px';
+        this.plotContainer.innerHTML = '';
+        this.plotContainer.appendChild(plotDiv);
+
+        // Dynamically import Plotly
+        const Plotly = await import('plotly.js-dist-min');
+        await Plotly.newPlot(plotDiv, traces, layout, { responsive: true });
+
+        // Update stats table
+        this.updateStatsTable(trajectories);
+      } catch (error) {
+        console.error('Error running race:', error);
+        this.plotContainer.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+      } finally {
+        this.raceButton.disabled = false;
+      }
+    }
+
+    updateStatsTable(trajectories) {
+      this.statsTbody.innerHTML = trajectories
+        .map((traj) => {
+          const stats = this.race.getStats(traj);
+          return `
+        <tr>
+          <td>${traj.optimizer}</td>
+          <td>${traj.learningRate}</td>
+          <td>${stats.finalLoss.toFixed(6)}</td>
+          <td>${stats.finalIter}</td>
+        </tr>
+      `;
+        })
+        .join('');
+
+      this.statsContainer.classList.remove('stats-hidden');
+    }
+
+    triggerUnlock() {
+      window.dispatchEvent(
+        new CustomEvent('unlock', {
+          detail: { featureId: demoId },
+        })
+      );
+    }
+  }
+
+  // Initialize when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      new ConvergenceRaceDemo();
+    });
+  } else {
+    new ConvergenceRaceDemo();
+  }
+</script>
+
+<style>
+  .convergence-race-container {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    max-width: 1000px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+  }
+
+  .race-header {
+    text-align: center;
+  }
+
+  .race-header h2 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+
+  .subtitle {
+    margin: 0;
+    color: #666;
+    font-size: 0.95rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .subtitle {
+      color: #aaa;
+    }
+  }
+
+  .race-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 1.5rem;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .race-controls {
+      background: #1f2937;
+      border-color: #374151;
+    }
+  }
+
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .control-group label {
+    font-weight: 500;
+    font-size: 0.95rem;
+  }
+
+  select {
+    padding: 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    background: white;
+    color: #1f2937;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    select {
+      background: #374151;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+  }
+
+  .problem-description {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #666;
+    line-height: 1.4;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .problem-description {
+      color: #aaa;
+    }
+  }
+
+  .optimizer-filters {
+    display: flex;
+    gap: 1.5rem;
+  }
+
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-size: 0.95rem;
+  }
+
+  .optimizer-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+  }
+
+  button {
+    align-self: flex-start;
+    padding: 0.75rem 1.5rem;
+    background: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  button:hover:not(:disabled) {
+    background: #1d4ed8;
+  }
+
+  button:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    button {
+      background: #3b82f6;
+    }
+
+    button:hover:not(:disabled) {
+      background: #2563eb;
+    }
+  }
+
+  .plot-placeholder {
+    min-height: 400px;
+    padding: 2rem;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .plot-placeholder {
+      background: #1f2937;
+      border-color: #374151;
+      color: #aaa;
+    }
+  }
+
+  .error {
+    color: #dc2626;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .error {
+      color: #ef4444;
+    }
+  }
+
+  .stats-hidden {
+    display: none;
+  }
+
+  .stats-table {
+    overflow-x: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    table {
+      background: #1f2937;
+      border-color: #374151;
+    }
+  }
+
+  th,
+  td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    th,
+    td {
+      border-color: #374151;
+    }
+  }
+
+  th {
+    background: #f3f4f6;
+    font-weight: 600;
+    color: #1f2937;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    th {
+      background: #111827;
+      color: #e5e7eb;
+    }
+  }
+
+  td {
+    color: #374151;
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 0.9rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    td {
+      color: #d1d5db;
+    }
+  }
+
+  tr:last-child th,
+  tr:last-child td {
+    border-bottom: none;
+  }
+
+  @media (max-width: 768px) {
+    .race-header h2 {
+      font-size: 1.25rem;
+    }
+
+    .convergence-race-container {
+      gap: 1.5rem;
+      margin: 1rem auto;
+    }
+
+    .race-controls {
+      gap: 1rem;
+    }
+
+    .optimizer-filters {
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+  }
+</style>
