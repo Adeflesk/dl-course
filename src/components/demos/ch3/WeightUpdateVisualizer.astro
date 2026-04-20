@@ -1,0 +1,525 @@
+---
+// Weight Update Visualizer Component
+// Advanced-level training dynamics visualization (loss + gradient norm)
+//
+// Props:
+//   - demoId: Unique identifier for unlock state (default: 'ch3-weight-update-viz')
+
+interface Props {
+  demoId?: string;
+}
+
+const { demoId = 'ch3-weight-update-viz' } = Astro.props;
+---
+
+<div class="weight-viz-container">
+  <div class="weight-viz-header">
+    <h2>Weight Update Dynamics</h2>
+    <p class="subtitle">Track how loss and gradient norms evolve during training</p>
+  </div>
+
+  <div class="weight-viz-layout">
+    <div class="weight-viz-controls">
+      <div class="control-group">
+        <label for="problem-select">Problem:</label>
+        <select id="problem-select">
+          <option value="">Loading...</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="optimizer-select">Optimizer:</label>
+        <select id="optimizer-select">
+          <option value="sgd">SGD</option>
+          <option value="adam" selected>Adam</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="lr-input">Learning Rate:</label>
+        <input
+          id="lr-input"
+          type="number"
+          min="0.0001"
+          max="1"
+          step="0.0001"
+          value="0.001"
+        />
+      </div>
+
+      <div class="control-group">
+        <label for="steps-slider">Steps:</label>
+        <div class="slider-display">
+          <input
+            id="steps-slider"
+            type="range"
+            min="50"
+            max="300"
+            step="10"
+            value="100"
+            class="param-slider"
+          />
+          <span id="steps-value" class="param-value">100</span>
+        </div>
+      </div>
+
+      <button id="run-viz-btn" disabled>Run Training</button>
+    </div>
+
+    <div class="plot-container">
+      <div id="weight-plots" class="weight-plots">
+        <p>Configure optimizer and click "Run Training" to begin</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="metrics-row" class="metrics-row hidden">
+    <h3>Summary Statistics</h3>
+    <div class="metrics-cards">
+      <div class="metric-card">
+        <div class="metric-label">Final Loss</div>
+        <div class="metric-value" id="final-loss">—</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Final Gradient Norm</div>
+        <div class="metric-value" id="final-grad">—</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Steps to Loss < 0.01</div>
+        <div class="metric-value" id="converge-step">—</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script define:vars={{ demoId }}>
+  import { WeightUpdateViz } from '../../../js/demos/ch3/weight-update-viz';
+
+  class WeightUpdateVizDemo {
+    constructor() {
+      this.viz = new WeightUpdateViz();
+      this.problemSelect = document.getElementById('problem-select');
+      this.optimizerSelect = document.getElementById('optimizer-select');
+      this.lrInput = document.getElementById('lr-input');
+      this.stepsSlider = document.getElementById('steps-slider');
+      this.stepsValue = document.getElementById('steps-value');
+      this.runBtn = document.getElementById('run-viz-btn');
+      this.plotDiv = document.getElementById('weight-plots');
+      this.metricsRow = document.getElementById('metrics-row');
+      this.finalLossEl = document.getElementById('final-loss');
+      this.finalGradEl = document.getElementById('final-grad');
+      this.convergeStepEl = document.getElementById('converge-step');
+
+      this.isDarkMode =
+        window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      this.firstInteraction = true;
+
+      this.init();
+    }
+
+    init() {
+      const problems = this.viz.listProblems();
+      this.populateProblems(problems);
+      this.attachEventListeners();
+
+      if (problems.length > 0) {
+        this.problemSelect.value = problems[0].id;
+        this.runBtn.disabled = false;
+      }
+    }
+
+    populateProblems(problems) {
+      this.problemSelect.innerHTML = problems
+        .map((p) => `<option value="${p.id}">${p.name}</option>`)
+        .join('');
+    }
+
+    attachEventListeners() {
+      this.optimizerSelect.addEventListener('change', (e) => {
+        if (e.target.value === 'sgd') {
+          this.lrInput.value = '0.01';
+        } else {
+          this.lrInput.value = '0.001';
+        }
+      });
+
+      this.stepsSlider.addEventListener('input', (e) => {
+        this.stepsValue.textContent = e.target.value;
+      });
+
+      this.runBtn.addEventListener('click', () => this.run());
+    }
+
+    async run() {
+      try {
+        this.runBtn.disabled = true;
+        this.plotDiv.innerHTML = '<p>Computing trajectory...</p>';
+
+        const problemId = this.problemSelect.value;
+        const optimizer = this.optimizerSelect.value;
+        const lr = parseFloat(this.lrInput.value);
+        const steps = parseInt(this.stepsSlider.value);
+
+        const params = this.viz.getDefaultParams(problemId);
+        const trajectory = this.viz.runTrajectory(problemId, params, optimizer, lr, steps);
+
+        const { lossTraces, gradTraces, layout } = this.viz.prepareWeightPlots(
+          trajectory,
+          optimizer,
+          lr,
+          this.isDarkMode
+        );
+
+        // Combine both traces
+        const traces = [...lossTraces, ...gradTraces];
+
+        const Plotly = await import('plotly.js-dist-min');
+        this.plotDiv.innerHTML = '';
+        await Plotly.newPlot(this.plotDiv, traces, layout, { responsive: true });
+
+        // Update summary stats
+        const stats = this.viz.getSummaryStats(trajectory);
+        this.finalLossEl.textContent = stats.finalLoss.toFixed(6);
+        this.finalGradEl.textContent = stats.finalGradNorm.toFixed(6);
+        this.convergeStepEl.textContent = stats.convergeStep !== null ? stats.convergeStep : 'Never';
+
+        this.metricsRow.classList.remove('hidden');
+
+        this.triggerFirstInteraction();
+      } catch (error) {
+        console.error('Error running visualization:', error);
+        this.plotDiv.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+      } finally {
+        this.runBtn.disabled = false;
+      }
+    }
+
+    triggerFirstInteraction() {
+      if (this.firstInteraction) {
+        window.dispatchEvent(
+          new CustomEvent('unlock', {
+            detail: { featureId: demoId },
+          })
+        );
+        this.firstInteraction = false;
+      }
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      new WeightUpdateVizDemo();
+    });
+  } else {
+    new WeightUpdateVizDemo();
+  }
+</script>
+
+<style>
+  .weight-viz-container {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+  }
+
+  .weight-viz-header {
+    text-align: center;
+  }
+
+  .weight-viz-header h2 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+
+  .subtitle {
+    margin: 0;
+    color: #666;
+    font-size: 0.95rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .subtitle {
+      color: #aaa;
+    }
+  }
+
+  .weight-viz-layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 2rem;
+    align-items: start;
+  }
+
+  @media (max-width: 900px) {
+    .weight-viz-layout {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .weight-viz-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 1.5rem;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    height: fit-content;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .weight-viz-controls {
+      background: #1f2937;
+      border-color: #374151;
+    }
+  }
+
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .control-group label {
+    font-weight: 500;
+    font-size: 0.95rem;
+  }
+
+  select,
+  input[type='number'] {
+    padding: 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    background: white;
+    color: #1f2937;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    select,
+    input[type='number'] {
+      background: #374151;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+  }
+
+  .slider-display {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+  }
+
+  .param-slider {
+    flex: 1;
+    height: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: #d1d5db;
+    border-radius: 5px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .param-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    background: #2563eb;
+    border-radius: 50%;
+    cursor: pointer;
+  }
+
+  .param-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    background: #2563eb;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .param-slider {
+      background: #4b5563;
+    }
+
+    .param-slider::-webkit-slider-thumb {
+      background: #3b82f6;
+    }
+
+    .param-slider::-moz-range-thumb {
+      background: #3b82f6;
+    }
+  }
+
+  .param-value {
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 0.85rem;
+    color: #666;
+    min-width: 40px;
+    text-align: right;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .param-value {
+      color: #aaa;
+    }
+  }
+
+  button {
+    padding: 0.75rem 1.5rem;
+    background: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  button:hover:not(:disabled) {
+    background: #1d4ed8;
+  }
+
+  button:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    button {
+      background: #3b82f6;
+    }
+
+    button:hover:not(:disabled) {
+      background: #2563eb;
+    }
+  }
+
+  .plot-container {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .weight-plots {
+    min-height: 500px;
+    padding: 2rem;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .weight-plots {
+      background: #1f2937;
+      border-color: #374151;
+      color: #aaa;
+    }
+  }
+
+  .metrics-row {
+    padding: 1.5rem;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .metrics-row {
+      background: #1f2937;
+      border-color: #374151;
+    }
+  }
+
+  .metrics-row h3 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+
+  .metrics-row.hidden {
+    display: none;
+  }
+
+  .metrics-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+  }
+
+  .metric-card {
+    padding: 1rem;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    text-align: center;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .metric-card {
+      background: #111827;
+      border-color: #374151;
+    }
+  }
+
+  .metric-label {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 0.5rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .metric-label {
+      color: #aaa;
+    }
+  }
+
+  .metric-value {
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #1f2937;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .metric-value {
+      color: #e5e7eb;
+    }
+  }
+
+  .error {
+    color: #dc2626;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .error {
+      color: #ef4444;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .weight-viz-header h2 {
+      font-size: 1.25rem;
+    }
+
+    .weight-viz-container {
+      gap: 1.5rem;
+      margin: 1rem auto;
+    }
+
+    .metrics-cards {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

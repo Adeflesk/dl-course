@@ -1,0 +1,760 @@
+---
+// Advanced Tuning Panel Component
+// Advanced-level hyperparameter sensitivity explorer with multi-config comparison
+//
+// Props:
+//   - demoId: Unique identifier for unlock state (default: 'ch3-advanced-tuning')
+
+interface Props {
+  demoId?: string;
+}
+
+const { demoId = 'ch3-advanced-tuning' } = Astro.props;
+---
+
+<div class="tuning-container">
+  <div class="tuning-header">
+    <h2>Hyperparameter Sensitivity Explorer</h2>
+    <p class="subtitle">Add optimizer configurations and compare their convergence behavior</p>
+  </div>
+
+  <div class="tuning-layout">
+    <div class="tuning-builder">
+      <h3>Build Configuration</h3>
+
+      <div class="control-group">
+        <label for="problem-select">Problem:</label>
+        <select id="problem-select">
+          <option value="">Loading...</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="config-optimizer">Optimizer:</label>
+        <select id="config-optimizer">
+          <option value="sgd">SGD</option>
+          <option value="adam" selected>Adam</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="config-lr">Learning Rate:</label>
+        <input id="config-lr" type="number" min="0.0001" max="1" step="0.0001" value="0.001" />
+      </div>
+
+      <div id="adam-params" class="adam-params">
+        <div class="control-group">
+          <label for="config-beta1">β₁ (momentum):</label>
+          <div class="slider-display">
+            <input
+              id="config-beta1"
+              type="range"
+              min="0.5"
+              max="0.999"
+              step="0.001"
+              value="0.9"
+              class="param-slider"
+            />
+            <span id="beta1-value" class="param-value">0.900</span>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label for="config-beta2">β₂ (velocity):</label>
+          <div class="slider-display">
+            <input
+              id="config-beta2"
+              type="range"
+              min="0.9"
+              max="0.9999"
+              step="0.0001"
+              value="0.999"
+              class="param-slider"
+            />
+            <span id="beta2-value" class="param-value">0.9990</span>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label for="config-epsilon">ε (stability):</label>
+          <div class="slider-display">
+            <input
+              id="config-epsilon"
+              type="range"
+              min="-10"
+              max="-6"
+              step="0.5"
+              value="-8"
+              class="param-slider"
+            />
+            <span id="epsilon-value" class="param-value">1e-8</span>
+          </div>
+        </div>
+      </div>
+
+      <button id="add-config-btn">Add Configuration</button>
+    </div>
+
+    <div class="tuning-saved">
+      <h3>Saved Configurations</h3>
+
+      <div id="config-list" class="config-list">
+        <p id="empty-hint" class="empty-hint">Add at least 1 configuration to compare</p>
+      </div>
+
+      <button id="run-all-btn" class="run-all-btn" disabled>Run All</button>
+    </div>
+  </div>
+
+  <div id="tuning-results" class="tuning-results hidden">
+    <div class="plot-container">
+      <div id="comparison-plot" class="comparison-plot">
+        <p>Computing trajectories...</p>
+      </div>
+    </div>
+
+    <div class="results-table-container">
+      <h3>Convergence Summary</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Configuration</th>
+            <th>Final Loss</th>
+            <th>Converged At</th>
+            <th>Converged?</th>
+          </tr>
+        </thead>
+        <tbody id="results-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script define:vars={{ demoId }}>
+  import { AdvancedTuningPanel } from '../../../js/demos/ch3/advanced-tuning-panel';
+
+  class AdvancedTuningPanelDemo {
+    constructor() {
+      this.panel = new AdvancedTuningPanel();
+      this.problemSelect = document.getElementById('problem-select');
+      this.configOptimizer = document.getElementById('config-optimizer');
+      this.configLr = document.getElementById('config-lr');
+      this.adamParams = document.getElementById('adam-params');
+      this.configBeta1 = document.getElementById('config-beta1');
+      this.beta1Value = document.getElementById('beta1-value');
+      this.configBeta2 = document.getElementById('config-beta2');
+      this.beta2Value = document.getElementById('beta2-value');
+      this.configEpsilon = document.getElementById('config-epsilon');
+      this.epsilonValue = document.getElementById('epsilon-value');
+      this.addConfigBtn = document.getElementById('add-config-btn');
+      this.configList = document.getElementById('config-list');
+      this.emptyHint = document.getElementById('empty-hint');
+      this.runAllBtn = document.getElementById('run-all-btn');
+      this.tuningResults = document.getElementById('tuning-results');
+      this.comparisonPlot = document.getElementById('comparison-plot');
+      this.resultsTbody = document.getElementById('results-tbody');
+
+      this.isDarkMode =
+        window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      this.savedConfigs = [];
+      this.colorIndex = 0;
+      this.firstInteraction = true;
+
+      this.init();
+    }
+
+    init() {
+      const problems = this.panel.listProblems();
+      this.populateProblems(problems);
+      this.attachEventListeners();
+
+      if (problems.length > 0) {
+        this.problemSelect.value = problems[0].id;
+      }
+    }
+
+    populateProblems(problems) {
+      this.problemSelect.innerHTML = problems
+        .map((p) => `<option value="${p.id}">${p.name}</option>`)
+        .join('');
+    }
+
+    attachEventListeners() {
+      this.configOptimizer.addEventListener('change', () => this.updateAdamParamsVisibility());
+      this.configBeta1.addEventListener('input', (e) => {
+        this.beta1Value.textContent = parseFloat(e.target.value).toFixed(3);
+      });
+      this.configBeta2.addEventListener('input', (e) => {
+        this.beta2Value.textContent = parseFloat(e.target.value).toFixed(4);
+      });
+      this.configEpsilon.addEventListener('input', (e) => {
+        const logVal = parseInt(e.target.value);
+        this.epsilonValue.textContent = `1e${logVal}`;
+      });
+
+      this.addConfigBtn.addEventListener('click', () => this.addConfig());
+      this.runAllBtn.addEventListener('click', () => this.runAll());
+    }
+
+    updateAdamParamsVisibility() {
+      if (this.configOptimizer.value === 'adam') {
+        this.adamParams.classList.remove('hidden');
+      } else {
+        this.adamParams.classList.add('hidden');
+      }
+    }
+
+    addConfig() {
+      if (this.savedConfigs.length >= 8) {
+        alert('Maximum 8 configurations reached');
+        return;
+      }
+
+      const config = {
+        label: '',
+        optimizer: this.configOptimizer.value,
+        lr: parseFloat(this.configLr.value),
+        beta1: this.configOptimizer.value === 'adam' ? parseFloat(this.configBeta1.value) : 0.9,
+        beta2: this.configOptimizer.value === 'adam' ? parseFloat(this.configBeta2.value) : 0.999,
+        epsilon:
+          this.configOptimizer.value === 'adam'
+            ? Math.pow(10, parseInt(this.configEpsilon.value))
+            : 1e-8,
+      };
+
+      config.label = this.panel.generateLabel(config);
+
+      const color = this.panel.getColorForIndex(this.colorIndex++);
+      this.savedConfigs.push({ ...config, color });
+
+      this.renderConfigList();
+      this.updateRunAllButton();
+      this.triggerFirstInteraction();
+    }
+
+    renderConfigList() {
+      this.configList.innerHTML =
+        this.savedConfigs.length === 0
+          ? '<p id="empty-hint" class="empty-hint">Add at least 1 configuration to compare</p>'
+          : this.savedConfigs
+              .map(
+                (config, idx) => `
+        <div class="config-card">
+          <div class="config-dot" style="background-color: ${config.color};"></div>
+          <span class="config-label">${config.label}</span>
+          <button class="remove-btn" data-index="${idx}">×</button>
+        </div>
+      `
+              )
+              .join('');
+
+      // Attach remove handlers
+      document.querySelectorAll('.remove-btn').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          const idx = parseInt(e.target.dataset.index);
+          this.savedConfigs.splice(idx, 1);
+          this.colorIndex = Math.max(0, this.colorIndex - 1);
+          this.renderConfigList();
+          this.updateRunAllButton();
+        });
+      });
+    }
+
+    updateRunAllButton() {
+      this.runAllBtn.disabled = this.savedConfigs.length === 0;
+    }
+
+    async runAll() {
+      try {
+        this.runAllBtn.disabled = true;
+        this.comparisonPlot.innerHTML = '<p>Computing trajectories...</p>';
+
+        const problemId = this.problemSelect.value;
+        const params = this.panel.getDefaultParams(problemId);
+        const results = this.panel.runAllConfigs(this.savedConfigs, problemId, params, 150);
+
+        // Plot
+        const { traces, layout } = this.panel.prepareComparisonPlot(results, this.isDarkMode);
+        const Plotly = await import('plotly.js-dist-min');
+        this.comparisonPlot.innerHTML = '';
+        await Plotly.newPlot(this.comparisonPlot, traces, layout, { responsive: true });
+
+        // Results table
+        const tableData = this.panel.getResultsTableData(results);
+        this.resultsTbody.innerHTML = tableData
+          .map(
+            (row) => `
+        <tr>
+          <td>${row.label}</td>
+          <td>${row.finalLoss}</td>
+          <td>${row.convergedAt}</td>
+          <td>${row.converged}</td>
+        </tr>
+      `
+          )
+          .join('');
+
+        this.tuningResults.classList.remove('hidden');
+        this.triggerFirstInteraction();
+      } catch (error) {
+        console.error('Error running comparison:', error);
+        this.comparisonPlot.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+      } finally {
+        this.runAllBtn.disabled = false;
+      }
+    }
+
+    triggerFirstInteraction() {
+      if (this.firstInteraction) {
+        window.dispatchEvent(
+          new CustomEvent('unlock', {
+            detail: { featureId: demoId },
+          })
+        );
+        this.firstInteraction = false;
+      }
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      new AdvancedTuningPanelDemo();
+    });
+  } else {
+    new AdvancedTuningPanelDemo();
+  }
+</script>
+
+<style>
+  .tuning-container {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+  }
+
+  .tuning-header {
+    text-align: center;
+  }
+
+  .tuning-header h2 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+
+  .subtitle {
+    margin: 0;
+    color: #666;
+    font-size: 0.95rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .subtitle {
+      color: #aaa;
+    }
+  }
+
+  .tuning-layout {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 2rem;
+  }
+
+  @media (max-width: 1000px) {
+    .tuning-layout {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .tuning-builder,
+  .tuning-saved {
+    padding: 1.5rem;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .tuning-builder,
+    .tuning-saved {
+      background: #1f2937;
+      border-color: #374151;
+    }
+  }
+
+  .tuning-builder h3,
+  .tuning-saved h3 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .control-group label {
+    font-weight: 500;
+    font-size: 0.95rem;
+  }
+
+  select,
+  input[type='number'] {
+    padding: 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    background: white;
+    color: #1f2937;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    select,
+    input[type='number'] {
+      background: #374151;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+  }
+
+  .slider-display {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+  }
+
+  .param-slider {
+    flex: 1;
+    height: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: #d1d5db;
+    border-radius: 5px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .param-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    background: #2563eb;
+    border-radius: 50%;
+    cursor: pointer;
+  }
+
+  .param-slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    background: #2563eb;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .param-slider {
+      background: #4b5563;
+    }
+
+    .param-slider::-webkit-slider-thumb {
+      background: #3b82f6;
+    }
+
+    .param-slider::-moz-range-thumb {
+      background: #3b82f6;
+    }
+  }
+
+  .param-value {
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 0.85rem;
+    color: #666;
+    min-width: 50px;
+    text-align: right;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .param-value {
+      color: #aaa;
+    }
+  }
+
+  .adam-params {
+    padding-top: 1rem;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .adam-params {
+      border-color: #374151;
+    }
+  }
+
+  .adam-params.hidden {
+    display: none;
+  }
+
+  button {
+    padding: 0.75rem 1.5rem;
+    background: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+    width: 100%;
+  }
+
+  button:hover:not(:disabled) {
+    background: #1d4ed8;
+  }
+
+  button:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    button {
+      background: #3b82f6;
+    }
+
+    button:hover:not(:disabled) {
+      background: #2563eb;
+    }
+  }
+
+  .config-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    min-height: 100px;
+  }
+
+  .empty-hint {
+    margin: 0;
+    color: #999;
+    font-size: 0.9rem;
+    text-align: center;
+    padding: 2rem 0;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .empty-hint {
+      color: #666;
+    }
+  }
+
+  .config-card {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    font-size: 0.9rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .config-card {
+      background: #111827;
+      border-color: #374151;
+    }
+  }
+
+  .config-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .config-label {
+    flex: 1;
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 0.85rem;
+    color: #1f2937;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .config-label {
+      color: #e5e7eb;
+    }
+  }
+
+  .remove-btn {
+    width: auto;
+    padding: 0.25rem 0.5rem;
+    font-size: 1.2rem;
+    background: #ef4444;
+    min-width: unset;
+  }
+
+  .remove-btn:hover {
+    background: #dc2626;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .remove-btn {
+      background: #7f1d1d;
+    }
+
+    .remove-btn:hover {
+      background: #991b1b;
+    }
+  }
+
+  .run-all-btn {
+    margin-top: auto;
+  }
+
+  .tuning-results {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .tuning-results.hidden {
+    display: none;
+  }
+
+  .plot-container {
+    padding: 1.5rem;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .plot-container {
+      background: #1f2937;
+      border-color: #374151;
+    }
+  }
+
+  .comparison-plot {
+    min-height: 400px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .comparison-plot {
+      color: #aaa;
+    }
+  }
+
+  .results-table-container {
+    padding: 1.5rem;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .results-table-container {
+      background: #1f2937;
+      border-color: #374151;
+    }
+  }
+
+  .results-table-container h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    table {
+      background: #111827;
+    }
+  }
+
+  th,
+  td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    th,
+    td {
+      border-color: #374151;
+    }
+  }
+
+  th {
+    background: #f3f4f6;
+    font-weight: 600;
+    color: #1f2937;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    th {
+      background: #111827;
+      color: #e5e7eb;
+    }
+  }
+
+  td {
+    color: #374151;
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 0.9rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    td {
+      color: #d1d5db;
+    }
+  }
+
+  .error {
+    color: #dc2626;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .error {
+      color: #ef4444;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .tuning-header h2 {
+      font-size: 1.25rem;
+    }
+
+    .tuning-container {
+      gap: 1.5rem;
+      margin: 1rem auto;
+    }
+  }
+</style>
