@@ -1,0 +1,500 @@
+---
+// Loss Landscape 3D Component
+// Advanced-level 3D surface visualization of loss functions
+//
+// Props:
+//   - demoId: Unique identifier for unlock state (default: 'ch3-loss-landscape-3d')
+
+interface Props {
+  demoId?: string;
+}
+
+const { demoId = 'ch3-loss-landscape-3d' } = Astro.props;
+---
+
+<div class="landscape3d-container">
+  <div class="landscape3d-header">
+    <h2>3D Loss Landscape</h2>
+    <p class="subtitle">Explore the geometry of optimization problems in 3D</p>
+  </div>
+
+  <div class="landscape3d-layout">
+    <div class="landscape3d-controls">
+      <div class="control-group">
+        <label for="problem-select">Problem:</label>
+        <select id="problem-select">
+          <option value="">Loading...</option>
+        </select>
+        <p class="problem-desc" id="problem-desc"></p>
+      </div>
+
+      <div class="control-group">
+        <label for="scale-slider">Scale:</label>
+        <input
+          id="scale-slider"
+          type="range"
+          min="0.1"
+          max="5"
+          step="0.1"
+          value="1"
+          class="param-slider"
+        />
+        <span id="scale-value" class="param-value">1.000</span>
+      </div>
+
+      <div class="control-group">
+        <label for="resolution-slider">Resolution:</label>
+        <input
+          id="resolution-slider"
+          type="range"
+          min="15"
+          max="50"
+          step="5"
+          value="30"
+          class="param-slider"
+        />
+        <span id="resolution-value" class="param-value">30</span>
+      </div>
+
+      <div class="control-group">
+        <label class="checkbox-label">
+          <input id="trajectory-toggle" type="checkbox" />
+          Show optimizer path
+        </label>
+      </div>
+
+      <div id="trajectory-options" class="trajectory-options hidden">
+        <div class="control-group">
+          <label for="traj-optimizer">Optimizer:</label>
+          <select id="traj-optimizer">
+            <option value="sgd">SGD</option>
+            <option value="adam" selected>Adam</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label for="traj-lr">Learning Rate:</label>
+          <input
+            id="traj-lr"
+            type="number"
+            min="0.0001"
+            max="1"
+            step="0.0001"
+            value="0.1"
+          />
+        </div>
+      </div>
+
+      <button id="render-btn" disabled>Render 3D Surface</button>
+    </div>
+
+    <div class="plot-container">
+      <div id="landscape3d-plot" class="landscape3d-plot">
+        <p>Select a problem and click "Render 3D Surface" to begin</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script define:vars={{ demoId }}>
+  import { LossLandscape3D } from '../../../js/demos/ch3/loss-landscape-3d';
+
+  class LossLandscape3DDemo {
+    constructor() {
+      this.viz = new LossLandscape3D();
+      this.problemSelect = document.getElementById('problem-select');
+      this.problemDesc = document.getElementById('problem-desc');
+      this.scaleSlider = document.getElementById('scale-slider');
+      this.scaleValue = document.getElementById('scale-value');
+      this.resolutionSlider = document.getElementById('resolution-slider');
+      this.resolutionValue = document.getElementById('resolution-value');
+      this.trajectoryToggle = document.getElementById('trajectory-toggle');
+      this.trajectoryOptions = document.getElementById('trajectory-options');
+      this.trajOptimizer = document.getElementById('traj-optimizer');
+      this.trajLr = document.getElementById('traj-lr');
+      this.renderBtn = document.getElementById('render-btn');
+      this.plotDiv = document.getElementById('landscape3d-plot');
+
+      this.isDarkMode =
+        window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      this.firstInteraction = true;
+
+      this.init();
+    }
+
+    init() {
+      const problems = this.viz.listProblems();
+      this.populateProblems(problems);
+      this.attachEventListeners();
+
+      if (problems.length > 0) {
+        this.problemSelect.value = problems[0].id;
+        this.updateProblemUI();
+        this.renderBtn.disabled = false;
+      }
+    }
+
+    populateProblems(problems) {
+      this.problemSelect.innerHTML = problems
+        .map((p) => `<option value="${p.id}">${p.name}</option>`)
+        .join('');
+    }
+
+    attachEventListeners() {
+      this.problemSelect.addEventListener('change', () => {
+        this.updateProblemUI();
+        this.triggerFirstInteraction();
+      });
+
+      this.scaleSlider.addEventListener('input', (e) => {
+        this.scaleValue.textContent = parseFloat(e.target.value).toFixed(3);
+      });
+
+      this.resolutionSlider.addEventListener('input', (e) => {
+        this.resolutionValue.textContent = e.target.value;
+      });
+
+      this.trajectoryToggle.addEventListener('change', () => {
+        this.trajectoryOptions.classList.toggle('hidden');
+      });
+
+      this.renderBtn.addEventListener('click', () => this.render());
+    }
+
+    updateProblemUI() {
+      const problem = this.viz.getProblemDefinition(this.problemSelect.value);
+      this.problemDesc.textContent = problem.description;
+    }
+
+    async render() {
+      try {
+        this.renderBtn.disabled = true;
+        this.plotDiv.innerHTML = '<p>Computing 3D surface...</p>';
+
+        const problemId = this.problemSelect.value;
+        const scale = parseFloat(this.scaleSlider.value);
+        const resolution = parseInt(this.resolutionSlider.value);
+        const showTrajectory = this.trajectoryToggle.checked;
+
+        const landscape = this.viz.computeLandscape(problemId, { scale }, resolution);
+
+        let trajectory = null;
+        if (showTrajectory) {
+          const optimizer = this.trajOptimizer.value;
+          const lr = parseFloat(this.trajLr.value);
+          trajectory = this.viz.computeTrajectoryFor3D(problemId, { scale }, optimizer, lr);
+        }
+
+        const problem = this.viz.getProblemDefinition(problemId);
+        const { surfaceTrace, trajectoryTrace, layout } = this.viz.preparePlotData(
+          landscape,
+          trajectory,
+          problem.name,
+          this.isDarkMode
+        );
+
+        const traces = trajectoryTrace ? [surfaceTrace, trajectoryTrace] : [surfaceTrace];
+
+        const Plotly = await import('plotly.js-dist-min');
+        this.plotDiv.innerHTML = '';
+        await Plotly.newPlot(this.plotDiv, traces, layout, { responsive: true });
+
+        this.triggerFirstInteraction();
+      } catch (error) {
+        console.error('Error rendering landscape:', error);
+        this.plotDiv.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+      } finally {
+        this.renderBtn.disabled = false;
+      }
+    }
+
+    triggerFirstInteraction() {
+      if (this.firstInteraction) {
+        window.dispatchEvent(
+          new CustomEvent('unlock', {
+            detail: { featureId: demoId },
+          })
+        );
+        this.firstInteraction = false;
+      }
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      new LossLandscape3DDemo();
+    });
+  } else {
+    new LossLandscape3DDemo();
+  }
+</script>
+
+<style>
+  .landscape3d-container {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+  }
+
+  .landscape3d-header {
+    text-align: center;
+  }
+
+  .landscape3d-header h2 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+
+  .subtitle {
+    margin: 0;
+    color: #666;
+    font-size: 0.95rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .subtitle {
+      color: #aaa;
+    }
+  }
+
+  .landscape3d-layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 2rem;
+    align-items: start;
+  }
+
+  @media (max-width: 900px) {
+    .landscape3d-layout {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .landscape3d-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 1.5rem;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    height: fit-content;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .landscape3d-controls {
+      background: #1f2937;
+      border-color: #374151;
+    }
+  }
+
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .control-group label {
+    font-weight: 500;
+    font-size: 0.95rem;
+  }
+
+  select,
+  input[type='number'] {
+    padding: 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    background: white;
+    color: #1f2937;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    select,
+    input[type='number'] {
+      background: #374151;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+  }
+
+  .param-slider {
+    height: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: #d1d5db;
+    border-radius: 5px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .param-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    background: #2563eb;
+    border-radius: 50%;
+    cursor: pointer;
+  }
+
+  .param-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    background: #2563eb;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .param-slider {
+      background: #4b5563;
+    }
+
+    .param-slider::-webkit-slider-thumb {
+      background: #3b82f6;
+    }
+
+    .param-slider::-moz-range-thumb {
+      background: #3b82f6;
+    }
+  }
+
+  .param-value {
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 0.85rem;
+    color: #666;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .param-value {
+      color: #aaa;
+    }
+  }
+
+  .problem-desc {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #666;
+    line-height: 1.4;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .problem-desc {
+      color: #aaa;
+    }
+  }
+
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-size: 0.95rem;
+  }
+
+  input[type='checkbox'] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+  }
+
+  .trajectory-options {
+    padding-top: 1rem;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .trajectory-options {
+      border-color: #374151;
+    }
+  }
+
+  .trajectory-options.hidden {
+    display: none;
+  }
+
+  button {
+    padding: 0.75rem 1.5rem;
+    background: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  button:hover:not(:disabled) {
+    background: #1d4ed8;
+  }
+
+  button:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    button {
+      background: #3b82f6;
+    }
+
+    button:hover:not(:disabled) {
+      background: #2563eb;
+    }
+  }
+
+  .plot-container {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .landscape3d-plot {
+    min-height: 500px;
+    padding: 2rem;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .landscape3d-plot {
+      background: #1f2937;
+      border-color: #374151;
+      color: #aaa;
+    }
+  }
+
+  .error {
+    color: #dc2626;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .error {
+      color: #ef4444;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .landscape3d-header h2 {
+      font-size: 1.25rem;
+    }
+
+    .landscape3d-container {
+      gap: 1.5rem;
+      margin: 1rem auto;
+    }
+  }
+</style>
