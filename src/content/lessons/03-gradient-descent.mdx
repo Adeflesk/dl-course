@@ -8,6 +8,9 @@ import CodeSnippet from '../../components/CodeSnippet.astro';
 import APIReference from '../../components/APIReference.astro';
 import ConvergenceRace from '../../components/demos/ch3/ConvergenceRace.astro';
 import CustomProblemBuilder from '../../components/demos/ch3/CustomProblemBuilder.astro';
+import LossLandscape3D from '../../components/demos/ch3/LossLandscape3D.astro';
+import WeightUpdateVisualizer from '../../components/demos/ch3/WeightUpdateVisualizer.astro';
+import AdvancedTuningPanel from '../../components/demos/ch3/AdvancedTuningPanel.astro';
 import UnlockManager from '../../components/demos/shared/UnlockManager.astro';
 
 Training a neural network means finding weights that minimize a loss function. The loss is a scalar that measures how wrong the model is. We want to move the weights in the direction that decreases it — that's gradient descent.
@@ -201,3 +204,40 @@ Adam(const std::vector<Tensor*>& params, float lr = 0.001f);
 <div class="callout">
 The learning rate is the most sensitive hyperparameter. A factor of 10× too large will break training; a factor of 10× too small will converge, just slowly. Start with 0.001 for Adam and tune from there.
 </div>
+
+## Advanced: Optimizer Playground
+
+The formulas above describe *what* Adam does. The playground below lets you see *why* the hyperparameters matter — and how drastically behavior changes when you deviate from the defaults.
+
+### See the Loss Landscape in 3D
+
+Before running any optimizer, it helps to see what it's navigating. The surface below shows the loss function as a 3D terrain. Valleys are minima; ridges are saddle regions where gradients nearly vanish.
+
+<UnlockManager featureId="ch3-loss-landscape-3d" triggerText="Render a 3D loss surface to unlock this visualization...">
+  <LossLandscape3D />
+</UnlockManager>
+
+Notice how the Rosenbrock function has a curved valley floor — the gradient points strongly sideways but weakly forward along the valley. This is exactly the pathological geometry that makes vanilla SGD oscillate while Adam adapts smoothly.
+
+### Track Weight Updates Over Time
+
+A 3D surface shows geometry; it doesn't show *dynamics*. This visualizer plots loss and gradient norm together across iterations, revealing the actual trajectory of training step by step.
+
+<UnlockManager featureId="ch3-weight-update-viz" triggerText="Run an optimizer to unlock weight update dynamics...">
+  <WeightUpdateVisualizer />
+</UnlockManager>
+
+Watch the gradient norm on the elliptical valley: SGD keeps high gradient norms for many iterations as it oscillates across the narrow axis. Adam's gradient norm drops more smoothly — its per-parameter scaling damps the oscillation and speeds convergence.
+
+### Compare Hyperparameter Configurations
+
+The learning rate callout above mentions "a factor of 10× too large will break training." Below you can verify this directly, and extend the experiment to beta1, beta2, and epsilon. Add multiple configurations and see how sensitive convergence is to each parameter.
+
+<UnlockManager featureId="ch3-advanced-tuning" triggerText="Add at least one configuration to unlock the comparison tool...">
+  <AdvancedTuningPanel />
+</UnlockManager>
+
+Suggested experiments:
+- **Learning rate sensitivity:** Add Adam with lr=0.001, lr=0.01, lr=0.1 on Rosenbrock. Observe which ones converge and which diverge.
+- **Beta2 sensitivity:** Fix lr=0.001, vary beta2 (0.9, 0.99, 0.999). Lower beta2 adapts faster but is noisier on the noisy quadratic.
+- **SGD vs Adam on equal footing:** Find the best SGD learning rate for the quadratic bowl, then compare to Adam's default — this concretizes why adaptive optimizers were invented.
