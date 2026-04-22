@@ -1,0 +1,418 @@
+---
+import UnlockManager from '../shared/UnlockManager.astro';
+---
+
+<UnlockManager featureId="ch11-minigpt" triggerText="Generate text with MiniGPT...">
+  <div class="minigpt-demo">
+    <div class="controls">
+      <div class="control-group">
+        <label for="seed-input">Seed text (few characters):</label>
+        <input
+          id="seed-input"
+          type="text"
+          placeholder="Start with 'The '"
+          value="The "
+          maxlength="15"
+          class="seed-input"
+        />
+      </div>
+
+      <div class="control-group">
+        <label for="temperature">Temperature: <span id="temp-value">1.0</span></label>
+        <input
+          id="temperature"
+          type="range"
+          min="0.1"
+          max="2.0"
+          step="0.1"
+          value="1.0"
+          class="slider"
+        />
+        <small>0.1 = deterministic, 2.0 = very random</small>
+      </div>
+
+      <div class="control-group">
+        <label for="max-tokens">Max characters: <span id="max-value">200</span></label>
+        <input
+          id="max-tokens"
+          type="range"
+          min="50"
+          max="500"
+          step="10"
+          value="200"
+          class="slider"
+        />
+      </div>
+
+      <div class="control-group">
+        <label for="sampling">Sampling method:</label>
+        <div class="radio-group">
+          <label class="radio-label">
+            <input type="radio" id="greedy" name="sampling" value="greedy" />
+            Greedy (argmax)
+          </label>
+          <label class="radio-label">
+            <input
+              type="radio"
+              id="temperature-sample"
+              name="sampling"
+              value="temperature"
+              checked
+            />
+            Temperature sampling
+          </label>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <button id="generate-btn" class="generate-button">Generate</button>
+        <span id="status" class="status">Loading model...</span>
+      </div>
+    </div>
+
+    <div class="output-container">
+      <h4>Generated Text:</h4>
+      <div id="output" class="output-text">
+        <span class="seed-marker">Seed: </span><span id="output-seed"></span><span
+          id="generated"
+          class="generated"
+        ></span>
+      </div>
+    </div>
+
+    <div class="info">
+      <p><strong>About MiniGPT:</strong></p>
+      <ul>
+        <li>Architecture: Transformer with 2 layers, 4 attention heads</li>
+        <li>Embedding dimension: 64</li>
+        <li>Vocabulary: ~45-50 characters</li>
+        <li>Training: 50 epochs on a short public-domain text</li>
+      </ul>
+    </div>
+  </div>
+</UnlockManager>
+
+<script>
+  import { MiniGPTDemo } from '../../../js/demos/ch11/minigpt-demo';
+
+  const demo = new MiniGPTDemo();
+  let modelLoaded = false;
+
+  const seedInput = document.getElementById('seed-input') as HTMLInputElement;
+  const temperatureSlider = document.getElementById('temperature') as HTMLInputElement;
+  const temperatureValue = document.getElementById('temp-value') as HTMLElement;
+  const maxTokensSlider = document.getElementById('max-tokens') as HTMLInputElement;
+  const maxTokensValue = document.getElementById('max-value') as HTMLElement;
+  const greedyRadio = document.getElementById('greedy') as HTMLInputElement;
+  const temperatureSampleRadio = document.getElementById(
+    'temperature-sample'
+  ) as HTMLInputElement;
+  const generateBtn = document.getElementById('generate-btn') as HTMLButtonElement;
+  const statusSpan = document.getElementById('status') as HTMLElement;
+  const outputDiv = document.getElementById('output') as HTMLElement;
+  const generatedSpan = document.getElementById('generated') as HTMLElement;
+  const seedSpan = document.getElementById('output-seed') as HTMLElement;
+
+  // Update slider displays
+  temperatureSlider.addEventListener('input', (e) => {
+    temperatureValue.textContent = (e.target as HTMLInputElement).value;
+  });
+
+  maxTokensSlider.addEventListener('input', (e) => {
+    maxTokensValue.textContent = (e.target as HTMLInputElement).value;
+  });
+
+  // Load model on initialization
+  (async () => {
+    try {
+      await demo.loadModel();
+      modelLoaded = true;
+      statusSpan.textContent = '✓ Ready';
+      statusSpan.classList.add('ready');
+      generateBtn.disabled = false;
+    } catch (error) {
+      statusSpan.textContent = 'Error loading model';
+      statusSpan.classList.add('error');
+      console.error('Failed to load MiniGPT model:', error);
+    }
+  })();
+
+  // Generate button handler
+  generateBtn.addEventListener('click', async () => {
+    if (!modelLoaded) return;
+
+    const seed = seedInput.value;
+    if (!seed.trim()) {
+      statusSpan.textContent = 'Enter a seed';
+      return;
+    }
+
+    const maxTokens = parseInt(maxTokensSlider.value);
+    const temperature = parseFloat(temperatureSlider.value);
+    const useGreedy = greedyRadio.checked;
+
+    generateBtn.disabled = true;
+    statusSpan.textContent = 'Generating...';
+    generatedSpan.textContent = '';
+
+    try {
+      const result = demo.generateText(seed, maxTokens, temperature, useGreedy);
+
+      // Display seed
+      seedSpan.textContent = seed;
+
+      // Display generated text with streaming animation
+      generatedSpan.textContent = '';
+      for (const char of result) {
+        generatedSpan.textContent += char;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+
+      statusSpan.textContent = '✓ Done';
+    } catch (error) {
+      statusSpan.textContent = `Error: ${error}`;
+      console.error('Generation failed:', error);
+    } finally {
+      generateBtn.disabled = false;
+    }
+  });
+
+  // Allow Enter key to generate
+  seedInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && modelLoaded && !generateBtn.disabled) {
+      generateBtn.click();
+    }
+  });
+</script>
+
+<style>
+  .minigpt-demo {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    padding: 1.5rem;
+    background: var(--card-bg);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+  }
+
+  .controls {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .control-group label {
+    font-weight: 500;
+    font-size: 0.95rem;
+  }
+
+  .control-group small {
+    font-size: 0.85rem;
+    opacity: 0.8;
+  }
+
+  .seed-input {
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 1rem;
+    background: var(--input-bg);
+    color: var(--text-color);
+    font-family: monospace;
+  }
+
+  .slider {
+    width: 100%;
+    height: 6px;
+    cursor: pointer;
+  }
+
+  .radio-group {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  .radio-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-weight: 400;
+  }
+
+  .radio-label input[type='radio'] {
+    cursor: pointer;
+  }
+
+  .generate-button {
+    padding: 0.75rem 1.5rem;
+    background: var(--accent-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background 0.2s;
+  }
+
+  .generate-button:hover:not(:disabled) {
+    opacity: 0.9;
+  }
+
+  .generate-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .status {
+    font-size: 0.9rem;
+    padding: 0.5rem;
+    border-radius: 4px;
+    background: var(--status-bg);
+    color: var(--status-text);
+  }
+
+  .status.ready {
+    background: rgba(34, 197, 94, 0.1);
+    color: #22c55e;
+  }
+
+  .status.error {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+  }
+
+  .output-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .output-container h4 {
+    margin: 0;
+    font-size: 1rem;
+  }
+
+  .output-text {
+    min-height: 150px;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--input-bg);
+    color: var(--text-color);
+    font-family: monospace;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+  }
+
+  .seed-marker {
+    font-weight: 600;
+    opacity: 0.7;
+  }
+
+  .generated {
+    color: var(--accent-color);
+  }
+
+  .info {
+    padding: 1rem;
+    background: var(--quote-bg);
+    border-left: 4px solid var(--accent-color);
+    border-radius: 4px;
+    font-size: 0.95rem;
+  }
+
+  .info p {
+    margin: 0 0 0.5rem 0;
+  }
+
+  .info ul {
+    margin: 0.5rem 0 0 1.5rem;
+    padding: 0;
+  }
+
+  .info li {
+    margin: 0.25rem 0;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .seed-input {
+      background: #1f2937;
+      color: #e5e7eb;
+      border-color: #374151;
+    }
+
+    .output-text {
+      background: #1f2937;
+      color: #e5e7eb;
+      border-color: #374151;
+    }
+
+    .status {
+      background: #374151;
+      color: #9ca3af;
+    }
+
+    .generate-button {
+      background: #3b82f6;
+    }
+
+    .info {
+      background: #1f2937;
+      border-left-color: #3b82f6;
+    }
+  }
+
+  @media (prefers-color-scheme: light) {
+    .seed-input {
+      background: #ffffff;
+      color: #1f2937;
+      border-color: #e5e7eb;
+    }
+
+    .output-text {
+      background: #ffffff;
+      color: #1f2937;
+      border-color: #e5e7eb;
+    }
+
+    .status {
+      background: #f3f4f6;
+      color: #6b7280;
+    }
+
+    .generate-button {
+      background: #2563eb;
+    }
+
+    .info {
+      background: #f9fafb;
+      border-left-color: #2563eb;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .minigpt-demo {
+      padding: 1rem;
+    }
+
+    .output-text {
+      min-height: 120px;
+    }
+
+    .radio-group {
+      gap: 1rem;
+    }
+  }
+</style>

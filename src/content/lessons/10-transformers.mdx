@@ -1,22 +1,258 @@
 ---
-title: "Transformers: Attention & Self-Attention"
+title: "Transformers & Attention"
 chapter: 10
-description: "Self-attention mechanism, multi-head attention, and the Transformer architecture"
+description: "Self-attention, multi-head attention, causal masking, and GPT-style decoder architecture"
 ---
 
-## Overview
+import CodeSnippet from '../../components/CodeSnippet.astro';
+import APIReference from '../../components/APIReference.astro';
+import AttentionHeatmap from '../../components/demos/ch10/AttentionHeatmap.astro';
+import UnlockManager from '../../components/demos/shared/UnlockManager.astro';
 
-Transformers replace RNNs with self-attention, enabling parallel computation and better gradient flow.
+## The RNN Bottleneck
 
-### Scaled Dot-Product Attention
+LSTMs solve vanishing gradients, but they have a bottleneck: **all sequence information must flow through a single hidden state vector**. To generate the next token, $h_t$ must contain everything relevant from all $t-1$ previous tokens. For long sequences, this is inefficient.
 
-$$\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right) V$$
+Example: predicting the verb in "The bank officials from several countries convened to discuss the financial crisis and..." requires information from 20+ tokens back. The hidden state must compress all that information.
 
-Where Q (query), K (key), and V (value) are learned projections of input tokens.
+## Scaled Dot-Product Attention
 
-### Causal Masking
+**Attention** lets each token directly look at every other token. Instead of compressing information into a vector, we compute **relevance scores** between all pairs of positions.
 
-In language models, position i can only attend to positions j ≤ i (no future peeking).
+Given a query token, key tokens, and value tokens:
+
+$$\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V$$
+
+**Intuition:**
+- **Query** ($Q$): "What am I looking for?" — the current token
+- **Key** ($K$): "What can you offer?" — features of all tokens
+- **Value** ($V$): "Here's my information" — the actual content of all tokens
+
+The softmax scores which keys are relevant to the query. Then we take a weighted average of the values.
+
+**Example:** If a token queries "Give me subject information", the keys for "cat" and "dog" have high similarity, so their values contribute more to the output. The mechanism automatically learns what to attend to.
+
+## Multi-Head Attention
+
+One attention head may focus on short-range dependencies, another on long-range. Multi-head attention learns multiple attention patterns in parallel:
+
+$$\text{MultiHead}(Q, K, V) = \text{Concat}(h_1, \ldots, h_h) W^O$$
+
+where $h_i = \text{Attention}(Q W_i^Q, K W_i^K, V W_i^V)$ for $h$ different projection matrices.
+
+Each head sees a subspace of the embedding (split $d_{model}$ dimensions into $h$ heads of $d_k = d_{model} / h$). One head might learn "which nouns agree in gender", another "which verbs precede this subject". The $W^O$ projection combines insights.
+
+## Causal Masking
+
+During decoding, when generating token $t$, you can't look at future tokens $t+1, t+2, \ldots$. You mask them:
+
+$$\text{Attention}(Q, K, V)_{ij} = \begin{cases}
+\text{softmax}_j(QK^T / \sqrt{d_k})_j & \text{if } j \le i \\
+-\infty & \text{if } j > i
+\end{cases}$$
+
+The $-\infty$ entries become 0 after softmax, zeroing out future tokens.
+
+## Transformer Decoder Block
+
+A **Transformer block** for language modeling combines:
+
+1. **Pre-norm** layer normalization
+2. **Multi-head self-attention** (query, key, value all from the same input)
+3. **Residual connection** around attention
+4. **Pre-norm** again
+5. **Feed-forward network** (two linear layers with ReLU)
+6. **Residual connection** around FFN
+
+This is the **pre-norm** architecture:
+
+```
+x_norm = LayerNorm(x)
+attn_out = MultiHeadAttention(x_norm, x_norm, x_norm)
+x = x + attn_out  // residual
+
+x_norm = LayerNorm(x)
+ffn_out = Linear(ReLU(Linear(x_norm)))
+x = x + ffn_out   // residual
+```
+
+Residual connections help gradients flow and preserve information.
+
+## Positional Encoding
+
+Attention has no notion of sequence order — $\text{Attention}(Q, K, V)$ doesn't depend on positions. **Positional encodings** add position information:
+
+$$\text{PE}_{pos, 2i} = \sin(pos / 10000^{2i/d_{model}})$$
+$$\text{PE}_{pos, 2i+1} = \cos(pos / 10000^{2i/d_{model}})$$
+
+These sinusoidal patterns are fixed (not learned). Each position has a unique encoding that the attention mechanism can exploit to distinguish nearby vs. distant tokens.
+
+## Full TransformerDecoder
+
+A **Transformer decoder** for text generation stacks transformer blocks:
+
+1. **Embedding**: Token → dense vector
+2. **Positional encoding**: Add position information
+3. **Transformer blocks** ($N$ layers): Attend to context and feed forward
+4. **Layer norm**: Final normalization
+5. **Output projection**: $d_{model}$ → vocab_size
+
+The C++ implementation:
+
+```cpp
+nn::TransformerDecoder(int vocab_size, int embed_dim, int num_heads, int num_layers, int max_seq_len)
+```
+
+Key parameters:
+- `embed_dim`: size of token embeddings (64 in our tiny model)
+- `num_heads`: parallel attention heads (4)
+- `num_layers`: stacked transformer blocks (1 or 2)
+- `max_seq_len`: max sequence length (64 or 128)
+
+## C++ Attention Implementation
+
+From `MultiHeadAttention.h`:
+
+```cpp
+// Project input to Q, K, V
+Tensor Q = matmul(x, W_q);  // [seq_len, embed_dim]
+Tensor K = matmul(x, W_k);
+Tensor V = matmul(x, W_v);
+
+// Split into heads: [seq_len, num_heads, head_dim]
+// For each head:
+auto scores = matmul(Q_head, K_head.transpose()) / sqrt(head_dim);
+// Apply causal mask: set future positions to -inf
+auto attn_weights = softmax(scores);  // [seq_len, seq_len]
+auto output = matmul(attn_weights, V_head);  // [seq_len, head_dim]
+
+// Concatenate heads and project
+auto output = concat_heads(all_heads);  // [seq_len, embed_dim]
+output = matmul(output, W_o);
+```
+
+## Attention Visualization
+
+Below, visualize which tokens the model attends to. Type a phrase and pick an attention head to see its focus pattern.
+
+<UnlockManager featureId="ch10-attention-heatmap" triggerText="Visualize attention weights...">
+  <AttentionHeatmap />
+</UnlockManager>
+
+**What to look for:**
+- Diagonal patterns: tokens primarily attend to themselves (strong position-preserving bias)
+- Broad rows: tokens spreading attention across context (learning to aggregate)
+- Sparse patterns: head focusing on specific neighbors or token types
+
+## API Reference
+
+<APIReference name="nn::MultiHeadAttention">
+
+**Constructor:**
+
+```cpp
+MultiHeadAttention(int embed_dim, int num_heads);
+```
+
+**Methods:**
+
+- `Tensor forward(const Tensor& input)` — Apply self-attention (Q=K=V=input)
+- `std::vector<Tensor*> parameters()` — Return projection weights
+
+**Structure:**
+
+- **Projections**: $W^Q$, $W^K$, $W^V$ (all [embed_dim, embed_dim])
+- **Output projection**: $W^O$ ([embed_dim, embed_dim])
+- **Head splitting**: Each head operates on `embed_dim / num_heads` dimensions
+- **Causal masking**: Future positions masked to -∞ (sets attention to 0)
+
+**Internals:**
+
+```cpp
+// Simplified forward pass
+auto Q = matmul(input, W_q);
+auto K = matmul(input, W_k);
+auto V = matmul(input, W_v);
+
+for (int h = 0; h < num_heads; ++h) {
+    auto Q_h = Q.slice_cols(h * head_dim, (h+1) * head_dim);
+    auto K_h = K.slice_cols(h * head_dim, (h+1) * head_dim);
+    auto V_h = V.slice_cols(h * head_dim, (h+1) * head_dim);
+
+    auto scores = matmul(Q_h, K_h.transpose()) / sqrt(head_dim);
+    auto attn = softmax(mask(scores, causal=true));
+    auto out_h = matmul(attn, V_h);
+    // concatenate all heads
+}
+return matmul(concat_heads, W_o);
+```
+
+</APIReference>
+
+<APIReference name="nn::TransformerBlock">
+
+**Constructor:**
+
+```cpp
+TransformerBlock(int embed_dim, int num_heads, int num_layers);
+```
+
+**Methods:**
+
+- `Tensor forward(const Tensor& input)` — Process input through attention + FFN with residuals
+- `std::vector<Tensor*> parameters()` — Return all sub-layer parameters
+
+**Architecture (pre-norm):**
+
+```
+x_norm = LayerNorm(x)
+attn_out = MultiHeadAttention(x_norm)
+x = x + attn_out  // residual
+
+x_norm = LayerNorm(x)
+ffn_hidden = ReLU(Linear(x_norm, embed_dim → 4*embed_dim))
+ffn_out = Linear(ffn_hidden, 4*embed_dim → embed_dim)
+x = x + ffn_out   // residual
+```
+
+</APIReference>
+
+<APIReference name="nn::TransformerDecoder">
+
+**Constructor:**
+
+```cpp
+TransformerDecoder(int vocab_size, int embed_dim, int num_heads, int num_layers, int max_seq_len);
+```
+
+**Methods:**
+
+- `Tensor forward(const Tensor& tokens)` — Embed tokens, apply positional encoding, stack transformer blocks, project to logits
+- `std::vector<Tensor*> parameters()` — Return all layer parameters
+
+**Input/Output:**
+
+- **Input**: token indices [seq_len] (each element in [0, vocab_size))
+- **Output**: logits [seq_len, vocab_size]
+
+**Internals:**
+
+```cpp
+// Embedding + positional encoding
+Tensor x = embedding(tokens);        // [seq_len, embed_dim]
+x = x + positional_encoding(seq_len);
+
+// Stack transformer blocks
+for (int i = 0; i < num_layers; ++i) {
+    x = transformer_block[i](x);
+}
+
+// Output projection
+Tensor logits = matmul(x, W_out) + b_out;  // [seq_len, vocab_size]
+return logits;
+```
+
+</APIReference>
 
 ### Multi-Head Attention
 

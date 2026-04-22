@@ -1,0 +1,242 @@
+---
+title: "MiniGPT: Capstone Project"
+chapter: 11
+description: "Building a character-level generative pre-trained Transformer and capstone project"
+---
+
+import CodeSnippet from '../../components/CodeSnippet.astro';
+import APIReference from '../../components/APIReference.astro';
+import MiniGPTDemo from '../../components/demos/ch11/MiniGPTDemo.astro';
+import UnlockManager from '../../components/demos/shared/UnlockManager.astro';
+
+Chapters 1–10 built the foundations of deep learning: tensors, differentiation, optimization, supervised learning, convolutional networks, and transformers. This final chapter pulls everything together into **MiniGPT**, a small generative pre-trained transformer.
+
+**What is GPT?** Generative Pre-trained Transformer. The model:
+- **Generates** text by predicting the next character
+- Is **pre-trained** on unlabeled text (self-supervised)
+- Uses the **Transformer** architecture we built in Chapter 10
+
+You've already seen the pieces:
+- **Chapter 2**: Backpropagation computes gradients for the embedding and attention layers
+- **Chapter 3**: Adam optimizer trains the model
+- **Chapter 5**: Batch processing and loss functions (cross-entropy)
+- **Chapter 6**: Embedding layers map tokens to vectors
+- **Chapter 10**: Transformer blocks with multi-head attention
+
+MiniGPT assembles these into a complete generative model.
+
+## Architecture
+
+MiniGPT consists of:
+
+1. **Token Embedding**: Convert character indices to dense vectors
+2. **Positional Encoding**: Add position information (Chapter 10)
+3. **Transformer Blocks** (2 layers): Attend to context and extract features
+4. **Output Projection**: Map hidden state to vocab logits
+
+Diagram:
+
+```
+Input tokens
+     ↓
+[Embedding] (token ID → embed_dim vector)
+     ↓
+[Add Positional Encoding]
+     ↓
+[TransformerBlock #1] (self-attention + FFN)
+     ↓
+[TransformerBlock #2] (self-attention + FFN)
+     ↓
+[LayerNorm]
+     ↓
+[Output Projection] (embed_dim → vocab_size logits)
+     ↓
+[Softmax] → next character probabilities
+```
+
+## Training: Teacher Forcing
+
+During training, the model learns to predict the next character given the previous ones. We use **teacher forcing**:
+
+Input: "The quick brown"
+Target: " quick brown fox" (shift by 1)
+
+At each position $t$, the model predicts token $t+1$ based on tokens $0:t$. The loss is the cross-entropy between predicted logits and ground truth:
+
+$$\mathcal{L}_t = -\sum_v p_t(v) \log \hat{p}_t(v)$$
+
+where $p_t$ is the true one-hot token and $\hat{p}_t$ is the predicted probability distribution.
+
+Backprop through all transformer blocks updates all weights. The causal mask ensures each position only attends to earlier positions.
+
+## Generation: Autoregressive Sampling
+
+After training, the model generates text **autoregressively**:
+
+1. Start with seed: "The "
+2. Forward pass: embed "The ", compute logits for next token
+3. Sample or take argmax to get next character "q"
+4. Append "q", forward again
+5. Repeat until max length
+
+Two sampling strategies:
+
+**Greedy (Argmax):**
+```cpp
+int next_token = argmax(logits);  // deterministic, often repetitive
+```
+
+**Temperature Sampling:**
+```cpp
+auto probs = softmax(logits / temperature);
+int next_token = sample(probs);  // stochastic, varies with temperature
+```
+
+Lower temperature → distribution sharpens, output more deterministic.
+Higher temperature → distribution flattens, output more random.
+
+## C++ Implementation
+
+The tensorflowccp framework provides everything needed:
+
+```cpp
+#include "nn/TransformerDecoder.h"
+
+int main() {
+    int vocab_size = 47;   // ~50 unique characters
+    int embed_dim = 64;    // embedding dimension
+    int num_heads = 4;     // 4 attention heads
+    int num_layers = 2;    // 2 transformer blocks
+    int max_seq_len = 256; // can handle up to 256 tokens
+
+    // Build model
+    nn::TransformerDecoder model(vocab_size, embed_dim, num_heads, num_layers, max_seq_len);
+    nn::CrossEntropyLoss criterion;
+    optim::Adam optimizer(model.parameters(), 0.001f);
+
+    // Training loop
+    for (int epoch = 0; epoch < num_epochs; ++epoch) {
+        model.train();
+        optimizer.zero_grad();
+
+        // Forward pass
+        Tensor logits = model.forward(input_tokens);  // [seq_len, vocab_size]
+        Tensor loss = criterion.forward(logits, target_tokens);
+
+        // Backward + optimize
+        loss.backward(1.0f);
+        optimizer.step();
+    }
+
+    // Generation
+    model.eval();
+    std::vector<int> seed_tokens = {char_to_idx['T'], char_to_idx['h'], char_to_idx['e']};
+    std::vector<int> output = nn::generate_greedy(model, seed_tokens, 200);
+
+    // Detokenize and print
+    for (int idx : output) {
+        std::cout << idx_to_char[idx];
+    }
+}
+```
+
+Key insight: **The entire pipeline is automatic differentiation**. You define forward(), call loss.backward(), and gradients flow through embedding → transformer blocks → output projection.
+
+## Interactive Generation
+
+Below, try MiniGPT. Adjust temperature to see how it affects output diversity.
+
+<UnlockManager featureId="ch11-minigpt" triggerText="Generate text with MiniGPT...">
+  <MiniGPTDemo />
+</UnlockManager>
+
+**Model specs:**
+- Trained for 50 epochs on ~1200 character text corpus
+- 2 transformer layers, 4 attention heads, 64-dim embeddings
+- ~100K parameters total
+- Generates character by character (no tokenization/BPE)
+
+**What to try:**
+- Low temperature (0.2): repetitive but grammatical
+- Mid temperature (1.0): balanced randomness
+- High temperature (1.8): creative but nonsensical
+
+## What's Next? Real GPT-2
+
+This capstone model is tiny (~100K parameters). Real language models are vastly larger:
+
+- **GPT-2**: 1.5 billion parameters
+- **GPT-3**: 175 billion parameters
+- **LLaMA-70B**: 70 billion parameters
+
+Scaling up involves:
+
+1. **Larger corpus**: Wikipedia, Common Crawl (trillions of tokens)
+2. **Larger model**: More layers, more heads, larger embeddings
+3. **Efficient training**: Gradient checkpointing, mixed precision, distributed training
+4. **Better tokenization**: Byte-pair encoding (BPE) reduces vocab size
+5. **Post-training**: RLHF (reinforcement learning from human feedback) aligns the model with human preferences
+
+Despite the scale difference, the fundamental architecture is identical to MiniGPT: embedding → transformer blocks → output projection.
+
+## Key Takeaways
+
+| Concept | Chapter | Application |
+|---------|---------|-------------|
+| Backpropagation | 2 | Train all layers end-to-end |
+| Optimization | 3 | Adam updates all 100K parameters |
+| Embeddings | 6 | Convert tokens to vectors |
+| Transformers | 10 | Attend to context, extract relationships |
+| Self-supervision | 11 | Learn from unlabeled text (next-token prediction) |
+
+## API Reference
+
+<APIReference name="nn::TransformerDecoder">
+
+**Constructor:**
+
+```cpp
+TransformerDecoder(int vocab_size, int embed_dim, int num_heads, int num_layers, int max_seq_len);
+```
+
+**For Language Modeling:**
+
+```cpp
+// Training
+Tensor logits = model.forward(input_tokens);  // [seq_len, vocab_size]
+Tensor loss = criterion.forward(logits, target_tokens);
+loss.backward(1.0f);
+optimizer.step();
+
+// Generation (greedy)
+std::vector<int> output = nn::generate_greedy(model, seed, max_new_tokens);
+
+// Generation (sampled)
+std::vector<int> output = nn::generate_sample(model, seed, max_new_tokens, temperature);
+```
+
+**Parameters:**
+
+- `vocab_size`: unique characters/tokens (47 for ASCII subset)
+- `embed_dim`: dimensionality of token embeddings (64)
+- `num_heads`: parallel attention heads (4)
+- `num_layers`: stacked transformer blocks (2)
+- `max_seq_len`: maximum input length (256)
+
+</APIReference>
+
+## Conclusion
+
+You've implemented the full machine learning pipeline:
+
+- **Differentiation**: Automatic gradients for any computation
+- **Optimization**: Adam updates weights toward lower loss
+- **Architectures**: CNNs for images, RNNs/LSTMs for sequences, Transformers for language
+- **Pre-training**: Self-supervised learning from unlabeled data
+- **Inference**: Efficient generation via autoregressive sampling
+
+MiniGPT demonstrates that these pieces fit together seamlessly. With the same framework, you can build image classifiers, anomaly detectors, and generative models.
+
+The frontier is scaling: larger models, more data, and smarter optimization. But the core ideas — differentiable computation and gradient descent — remain unchanged since Rumelhart, Hinton, and Williams' 1986 backprop paper.
+
+**What's your next project?**

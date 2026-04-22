@@ -1,0 +1,272 @@
+---
+import UnlockManager from '../shared/UnlockManager.astro';
+---
+
+<UnlockManager featureId="ch9-lstm-text-gen" triggerText="Generate text with the LSTM...">
+  <div class="lstm-demo">
+    <div class="controls">
+      <div class="control-group">
+        <label for="seed-input">Seed text:</label>
+        <input
+          id="seed-input"
+          type="text"
+          placeholder="Start with 'The '"
+          value="The "
+          class="seed-input"
+        />
+      </div>
+
+      <div class="control-group">
+        <label for="temperature">Temperature: <span id="temp-value">0.8</span></label>
+        <input
+          id="temperature"
+          type="range"
+          min="0.1"
+          max="1.5"
+          step="0.1"
+          value="0.8"
+          class="slider"
+        />
+      </div>
+
+      <div class="control-group">
+        <label for="max-chars">Max characters: <span id="max-value">200</span></label>
+        <input
+          id="max-chars"
+          type="range"
+          min="50"
+          max="500"
+          step="10"
+          value="200"
+          class="slider"
+        />
+      </div>
+
+      <div class="control-group">
+        <button id="generate-btn" class="generate-button">Generate</button>
+        <span id="status" class="status">Loading model...</span>
+      </div>
+    </div>
+
+    <div class="output-container">
+      <textarea
+        id="output"
+        class="output-textarea"
+        readonly
+        placeholder="Generated text will appear here..."
+      ></textarea>
+    </div>
+  </div>
+</UnlockManager>
+
+<script>
+  import { LSTMTextGenDemo } from '../../../js/demos/ch9/lstm-text-gen';
+
+  const demo = new LSTMTextGenDemo();
+  let modelLoaded = false;
+
+  const seedInput = document.getElementById('seed-input') as HTMLInputElement;
+  const temperatureSlider = document.getElementById('temperature') as HTMLInputElement;
+  const temperatureValue = document.getElementById('temp-value') as HTMLElement;
+  const maxCharsSlider = document.getElementById('max-chars') as HTMLInputElement;
+  const maxCharsValue = document.getElementById('max-value') as HTMLElement;
+  const generateBtn = document.getElementById('generate-btn') as HTMLButtonElement;
+  const statusSpan = document.getElementById('status') as HTMLElement;
+  const outputTextarea = document.getElementById('output') as HTMLTextAreaElement;
+
+  // Update slider value displays
+  temperatureSlider.addEventListener('input', (e) => {
+    temperatureValue.textContent = (e.target as HTMLInputElement).value;
+  });
+
+  maxCharsSlider.addEventListener('input', (e) => {
+    maxCharsValue.textContent = (e.target as HTMLInputElement).value;
+  });
+
+  // Load model on initialization
+  (async () => {
+    try {
+      await demo.loadModel();
+      modelLoaded = true;
+      statusSpan.textContent = '✓ Ready';
+      statusSpan.classList.add('ready');
+      generateBtn.disabled = false;
+    } catch (error) {
+      statusSpan.textContent = 'Error loading model';
+      statusSpan.classList.add('error');
+      console.error('Failed to load LSTM model:', error);
+    }
+  })();
+
+  // Generate button handler
+  generateBtn.addEventListener('click', async () => {
+    if (!modelLoaded) return;
+
+    const seed = seedInput.value;
+    const maxChars = parseInt(maxCharsSlider.value);
+    const temperature = parseFloat(temperatureSlider.value);
+
+    generateBtn.disabled = true;
+    statusSpan.textContent = 'Generating...';
+
+    try {
+      const result = demo.generate(seed, maxChars, temperature);
+      outputTextarea.value = result;
+    } catch (error) {
+      outputTextarea.value = `Error: ${error}`;
+      console.error('Generation failed:', error);
+    } finally {
+      generateBtn.disabled = false;
+      statusSpan.textContent = '✓ Ready';
+    }
+  });
+</script>
+
+<style>
+  .lstm-demo {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    padding: 1.5rem;
+    background: var(--card-bg);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+  }
+
+  .controls {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .control-group label {
+    font-weight: 500;
+    font-size: 0.95rem;
+  }
+
+  .seed-input {
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 1rem;
+    background: var(--input-bg);
+    color: var(--text-color);
+    font-family: monospace;
+  }
+
+  .slider {
+    width: 100%;
+    height: 6px;
+    cursor: pointer;
+  }
+
+  .generate-button {
+    padding: 0.75rem 1.5rem;
+    background: var(--accent-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background 0.2s;
+  }
+
+  .generate-button:hover:not(:disabled) {
+    opacity: 0.9;
+  }
+
+  .generate-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .status {
+    font-size: 0.9rem;
+    padding: 0.5rem;
+    border-radius: 4px;
+    background: var(--status-bg);
+    color: var(--status-text);
+  }
+
+  .status.ready {
+    background: rgba(34, 197, 94, 0.1);
+    color: #22c55e;
+  }
+
+  .status.error {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+  }
+
+  .output-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .output-textarea {
+    min-height: 200px;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.95rem;
+    background: var(--input-bg);
+    color: var(--text-color);
+    line-height: 1.4;
+    resize: vertical;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .seed-input,
+    .output-textarea {
+      background: #1f2937;
+      color: #e5e7eb;
+      border-color: #374151;
+    }
+
+    .status {
+      background: #374151;
+      color: #9ca3af;
+    }
+
+    .generate-button {
+      background: #3b82f6;
+    }
+  }
+
+  @media (prefers-color-scheme: light) {
+    .seed-input,
+    .output-textarea {
+      background: #ffffff;
+      color: #1f2937;
+      border-color: #e5e7eb;
+    }
+
+    .status {
+      background: #f3f4f6;
+      color: #6b7280;
+    }
+
+    .generate-button {
+      background: #2563eb;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .lstm-demo {
+      padding: 1rem;
+    }
+
+    .output-textarea {
+      min-height: 150px;
+    }
+  }
+</style>

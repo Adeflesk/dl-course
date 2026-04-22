@@ -15,9 +15,9 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../public/wasm")
 
 # WASM bindings library
 add_executable(framework.js
-    tensor_wasm.cpp
+    lstm_inference.cpp
+    transformer_inference.cpp
     ops_wasm.cpp
-    modules_wasm.cpp
 )
 
 # Emscripten-specific linker flags

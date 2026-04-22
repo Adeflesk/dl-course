@@ -1,32 +1,236 @@
 ---
 title: "Sequence Models: RNN & LSTM"
 chapter: 9
-description: "Recurrent neural networks, LSTM cells, and backpropagation through time"
+description: "Recurrent neural networks, LSTM cells, backpropagation through time, and character-level generation"
 ---
 
-## Overview
+import CodeSnippet from '../../components/CodeSnippet.astro';
+import APIReference from '../../components/APIReference.astro';
+import LSTMTextGen from '../../components/demos/ch9/LSTMTextGen.astro';
+import UnlockManager from '../../components/demos/shared/UnlockManager.astro';
 
-Sequence models process variable-length inputs by maintaining hidden state across timesteps.
+Fixed-size inputs are a limitation. In Chapter 2, we processed individual samples. In Chapter 5, we batched them. But many tasks have **variable-length sequences**: text, time series, audio, DNA sequences. You can't force "the next word" into a 784-pixel image.
 
-### Problem: Vanishing Gradients
+## Recurrent Neural Networks
 
-RNNs struggle with long sequences because gradients shrink exponentially during backprop through time (BPTT).
+A **Recurrent Neural Network** processes sequences by applying the same computation at each timestep while maintaining a hidden state $h_t$:
 
-### LSTM Solution
+$$h_t = \tanh(W_{ih} \cdot x_t + W_{hh} \cdot h_{t-1} + b)$$
 
-LSTMs add gating mechanisms and cell state to preserve gradients:
+The hidden state $h_t$ is the "memory" — it carries information from all previous timesteps. At each step, you can use $h_t$ to:
+- Predict the next token
+- Classify the entire sequence
+- Generate a new token conditioned on history
 
-- **Forget gate** — controls which information to discard
-- **Input gate** — controls what new information to add
-- **Output gate** — controls what to expose to next layer
-- **Cell state** — long-term memory that flows through timesteps
+## Why RNNs Struggle: The Vanishing Gradient Problem
 
-The additive cell state update creates skip connections for gradient flow.
+Backpropagation through time (BPTT) unfolds the recurrence into a chain. When you propagate gradients backward through many timesteps, you multiply by the same Jacobian matrix repeatedly:
 
-## Implementation Note
+$$\frac{\partial h_T}{\partial h_0} = \prod_{t=1}^{T} \frac{\partial h_t}{\partial h_{t-1}}$$
 
-Full LSTM implementation and interactive demos coming in Phase 2 (pending nn::LSTM module in tensorflowccp).
+If the Jacobian eigenvalues are $< 1$, the product shrinks exponentially: $\lambda^T \to 0$ as $T$ grows. Gradients for early timesteps vanish. The network learns the recent past but forgets long-range dependencies.
+
+Example: predicting "the cat sat on the mat" requires remembering "cat" from 4 tokens ago. RNNs fail on such dependencies.
+
+## LSTM: Long Short-Term Memory
+
+LSTMs solve this with **gating mechanisms** and a **cell state** $c_t$ that accumulates information additively. Four "gates" control information flow:
+
+**Forget gate** — selects which old memories to discard:
+$$f_t = \sigma(W_{if} \cdot x_t + W_{hf} \cdot h_{t-1} + b_f)$$
+
+**Input gate** — selects which new values to add:
+$$i_t = \sigma(W_{ii} \cdot x_t + W_{hi} \cdot h_{t-1} + b_i)$$
+
+**Cell candidate** — proposed new memory value:
+$$\tilde{c}_t = \tanh(W_{ic} \cdot x_t + W_{hc} \cdot h_{t-1} + b_c)$$
+
+**Cell state update** — accumulate old + new information:
+$$c_t = f_t \odot c_{t-1} + i_t \odot \tilde{c}_t$$
+
+**Output gate** — decide what information to expose:
+$$o_t = \sigma(W_{io} \cdot x_t + W_{ho} \cdot h_{t-1} + b_o)$$
+
+**Hidden state** — apply output gate:
+$$h_t = o_t \odot \tanh(c_t)$$
+
+The key insight: $c_t = f_t \odot c_{t-1} + i_t \odot \tilde{c}_t$ is *additive* (not multiplicative). Backpropagating through addition doesn't multiply gradients — the chain rule gives:
+
+$$\frac{\partial L}{\partial c_t} = \frac{\partial L}{\partial c_{t+1}} \cdot 1 + \text{(gate path)}$$
+
+That multiplicative "1" means gradients flow unchanged through the cell state, preserving long-range dependencies.
+
+## C++ Implementation
+
+The tensorflowccp framework implements LSTM as `nn::LSTM`:
+
+```cpp
+// LSTM layer: input_size=32, hidden_size=64
+nn::LSTM lstm(32, 64);
+
+// Weights for each gate (forget, input, cell, output)
+// Each gate has input-to-hidden (W_*h) and hidden-to-hidden (W_hh) projections
+Tensor W_if;  // [input_size, hidden_size]
+Tensor W_hf;  // [hidden_size, hidden_size]
+Tensor b_f;   // [1, hidden_size]
+// ... same for input, cell, output gates ...
+```
+
+Forward pass processes an entire sequence:
+
+```cpp
+// Input: [seq_len, input_size]
+Tensor embedded = embedding.forward(tokens);    // [seq_len, 32]
+Tensor lstm_output = lstm.forward(embedded);    // [seq_len, 64]
+
+// Access final hidden state (connected to autodiff graph)
+Tensor h_final = lstm.last_hidden();  // [1, 64]
+
+// Prediction for next token
+Tensor logits = output_layer.forward(h_final);  // [1, vocab_size]
+```
+
+The LSTM internally unrolls the sequence, storing all gate activations to support backprop:
+
+```cpp
+// Inside LSTM::forward():
+for (int t = 0; t < seq_len; ++t) {
+    auto f_gate = sigmoid(x_t @ W_if + h_{t-1} @ W_hf + b_f);
+    auto i_gate = sigmoid(...);
+    auto c_cand = tanh(...);
+    auto o_gate = sigmoid(...);
+
+    // Cell state update (additive!)
+    c_t = f_gate * c_{t-1} + i_gate * c_cand;
+    h_t = o_gate * tanh(c_t);
+
+    // Store intermediates for backward pass
+    step_inputs.push_back(x_t);
+    h_states.push_back(h_t);
+    c_states.push_back(c_t);
+    // ... store all gate activations ...
+}
+```
+
+## Backpropagation Through Time
+
+BPTT is automatic: the autodiff graph unrolls the computation, and `backward()` propagates through all timesteps:
+
+```cpp
+// Training loop
+for (int epoch = 0; epoch < num_epochs; ++epoch) {
+    optimizer.zero_grad();
+
+    // Forward: embed → LSTM → output
+    Tensor embedded = embedding.forward(input);
+    lstm.forward(embedded);  // Unfolds computation
+    Tensor logits = output_layer.forward(lstm.last_hidden());
+
+    // Loss on next-token prediction
+    Tensor loss = criterion.forward(logits, targets);
+
+    // Backward unfolds back through all timesteps
+    loss.backward(1.0f);
+
+    // Gradients are ready for all parameters (including LSTM gate weights)
+    optimizer.step();
+}
+```
+
+The gradient flow through the additive cell state preserves information across all $T$ timesteps.
+
+## Interactive LSTM Text Generation
+
+Below, you can generate character-level text using a pre-trained LSTM. The model was trained on a short text corpus to predict the next character given a seed. Adjust the temperature to control randomness: low temperature (0.1) gives deterministic text, high temperature (1.5) gives more variety.
+
+<UnlockManager featureId="ch9-lstm-text-gen" triggerText="Generate text with the LSTM...">
+  <LSTMTextGen />
+</UnlockManager>
+
+Try these experiments:
+- **Start with "The "** — watch the model complete sentences from the training corpus
+- **Lower temperature to 0.2** — output becomes repetitive and deterministic
+- **Raise temperature to 1.3** — output becomes more creative (and nonsensical)
+- **Vary seed length** — longer seeds = more specific context
+
+The LSTM learns character patterns, word boundaries, and basic syntax from the training data, then uses the seed to generate plausible continuations.
+
+## API Reference
+
+<APIReference name="nn::RNN">
+
+**Constructor:**
+
+```cpp
+RNN(int input_size, int hidden_size);
+```
+
+**Methods:**
+
+- `Tensor forward(const Tensor& input)` — Process sequence [seq_len, input_size], returns [seq_len, hidden_size]
+- `Tensor& last_hidden()` — Access final hidden state [1, hidden_size] (connected to graph)
+- `std::vector<Tensor*> parameters()` — Return weight tensors for optimization
+
+**Properties:**
+
+- Simple recurrence: $h_t = \tanh(x_t @ W_{ih} + h_{t-1} @ W_{hh} + b)$
+- No gating — gradients vanish on long sequences
+- Used mainly for educational purposes; LSTM is preferred in practice
+
+</APIReference>
+
+<APIReference name="nn::LSTM">
+
+**Constructor:**
+
+```cpp
+LSTM(int input_size, int hidden_size);
+```
+
+**Methods:**
+
+- `Tensor forward(const Tensor& input)` — Process sequence [seq_len, input_size], returns [seq_len, hidden_size]
+- `Tensor forward_with_state(const Tensor& input, const Tensor& h0, const Tensor& c0)` — Initialize with custom hidden and cell state
+- `Tensor& last_hidden()` — Access final hidden state [1, hidden_size]
+- `Tensor& last_cell()` — Access final cell state [1, hidden_size]
+- `std::vector<Tensor*> parameters()` — Return all gate weight tensors
+
+**Gate Architecture:**
+
+Each gate uses two weight matrices:
+- Input-to-hidden: `[input_size, hidden_size]`
+- Hidden-to-hidden: `[hidden_size, hidden_size]`
+- Bias: `[1, hidden_size]`
+
+Four gates: forget, input, cell candidate, output.
+
+**Example:**
+
+```cpp
+nn::Embedding emb(vocab_size, 32);
+nn::LSTM lstm(32, 64);
+nn::Linear output(64, vocab_size);
+
+// Training
+for (int epoch = 0; epoch < 50; ++epoch) {
+    optimizer.zero_grad();
+    Tensor embedded = emb.forward(input);
+    lstm.forward(embedded);
+    Tensor logits = output.forward(lstm.last_hidden());
+    Tensor loss = criterion.forward(logits, targets);
+    loss.backward(1.0f);
+    optimizer.step();
+}
+
+// Generation
+int next_token = ...;  // greedy or sampled from logits
+std::vector<int> output_sequence = {next_token};
+```
+
+</APIReference>
 
 ## Next Steps
+
+Chapter 10 extends sequences to **Transformers**, which abandon recurrence entirely and use **attention** instead. Attention lets each token directly look at every other token, solving the information bottleneck of hidden-state-based models.
 
 Chapter 10 extends these ideas to Transformers, replacing recurrence with self-attention.

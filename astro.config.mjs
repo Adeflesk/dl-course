@@ -14,4 +14,11 @@ export default defineConfig({
       langs: ['cpp', 'bash', 'yaml'],
     },
   },
+  vite: {
+    build: {
+      rollupOptions: {
+        external: ['/wasm/framework.js'],
+      },
+    },
+  },
 });
