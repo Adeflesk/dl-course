@@ -1,7 +1,0 @@
-{
-	"InstallScripts" : 
-	[
-		"/Users/adriancorsini/Development/dl-course/wasm-src/build/cmake_install.cmake"
-	],
-	"Parallel" : false
-}
