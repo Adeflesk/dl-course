@@ -1,0 +1,249 @@
+---
+// TensorMemoryVisualizer.astro
+// Interactive 3D tensor to flat memory index visualization
+
+interface Props {
+  width?: number;
+  height?: number;
+}
+
+const { width = 800, height = 600 } = Astro.props;
+const clientId = Math.random().toString(36).substring(7);
+---
+
+<div id={`visualizer-${clientId}`} class="tensor-visualizer">
+  <div class="controls">
+    <label>
+      Tensor shape:
+      <input type="text" id={`shape-${clientId}`} value="3,4,2" />
+    </label>
+    <label>
+      Access indices [i, j, k]:
+      <input type="number" id={`idx-i-${clientId}`} min="0" max="2" value="1" />
+      <input type="number" id={`idx-j-${clientId}`} min="0" max="3" value="2" />
+      <input type="number" id={`idx-k-${clientId}`} min="0" max="1" value="1" />
+    </label>
+    <button id={`compute-${clientId}`}>Compute Flat Index</button>
+  </div>
+
+  <div class="visualization">
+    <canvas id={`canvas-${clientId}`} width={width} height={height}></canvas>
+  </div>
+
+  <div class="formula">
+    <p>Flat index = <span id={`formula-${clientId}`}></span></p>
+    <p>Result: <span id={`result-${clientId}`}></span></p>
+  </div>
+</div>
+
+<style>
+  .tensor-visualizer {
+    border: 1px solid #ccc;
+    padding: 1.5rem;
+    border-radius: 8px;
+    background: #f9f9f9;
+  }
+
+  .controls {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .controls label {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    font-size: 0.9rem;
+  }
+
+  .controls input {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: monospace;
+  }
+
+  .controls button {
+    padding: 0.5rem 1rem;
+    background: #007acc;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+  }
+
+  .controls button:hover {
+    background: #005a9e;
+  }
+
+  canvas {
+    border: 1px solid #ddd;
+    background: white;
+    display: block;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+  }
+
+  .formula {
+    font-family: monospace;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    background: white;
+    padding: 1rem;
+    border-radius: 4px;
+    border-left: 3px solid #007acc;
+  }
+</style>
+
+<script define:vars={{clientId}}>
+  const computeButton = document.getElementById(`compute-${clientId}`);
+  const shapeInput = document.getElementById(`shape-${clientId}`);
+  const iInput = document.getElementById(`idx-i-${clientId}`);
+  const jInput = document.getElementById(`idx-j-${clientId}`);
+  const kInput = document.getElementById(`idx-k-${clientId}`);
+  const canvas = document.getElementById(`canvas-${clientId}`);
+  const formulaSpan = document.getElementById(`formula-${clientId}`);
+  const resultSpan = document.getElementById(`result-${clientId}`);
+
+  const ctx = canvas.getContext('2d');
+
+  function parseShape(shapeStr) {
+    return shapeStr.split(',').map(s => parseInt(s.trim()));
+  }
+
+  function computeFlatIndex(shape, indices) {
+    let flatIndex = 0;
+    let stride = 1;
+
+    for (let d = shape.length - 1; d >= 0; d--) {
+      flatIndex += indices[d] * stride;
+      stride *= shape[d];
+    }
+
+    return flatIndex;
+  }
+
+  function buildFormulaString(shape, indices) {
+    let parts = [];
+    let stride = 1;
+
+    for (let d = shape.length - 1; d >= 0; d--) {
+      stride *= shape[d];
+    }
+
+    for (let d = 0; d < shape.length; d++) {
+      stride /= shape[d];
+      parts.push(`${indices[d]} × ${stride}`);
+    }
+
+    return parts.join(' + ');
+  }
+
+  function drawVisualization() {
+    const shape = parseShape(shapeInput.value);
+    const indices = [parseInt(iInput.value), parseInt(jInput.value), parseInt(kInput.value)];
+
+    // Validate indices
+    for (let i = 0; i < shape.length; i++) {
+      if (indices[i] < 0 || indices[i] >= shape[i]) {
+        alert(`Index ${i} out of bounds for dimension ${shape[i]}`);
+        return;
+      }
+    }
+
+    const flatIndex = computeFlatIndex(shape, indices);
+    const totalElements = shape.reduce((a, b) => a * b, 1);
+
+    // Clear canvas
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw 3D tensor representation (simplified isometric view)
+    ctx.font = '12px monospace';
+    ctx.fillStyle = '#333';
+    ctx.textAlign = 'left';
+
+    const cellWidth = 40;
+    const cellHeight = 20;
+    const startX = 50;
+    const startY = 50;
+
+    // Draw "layers" of the tensor
+    const [d0, d1, d2] = shape;
+
+    for (let i = 0; i < d0; i++) {
+      for (let j = 0; j < d1; j++) {
+        for (let k = 0; k < d2; k++) {
+          const x = startX + j * cellWidth + i * 10;
+          const y = startY + k * cellHeight + i * 5;
+
+          const isHighlighted = (i === indices[0] && j === indices[1] && k === indices[2]);
+
+          ctx.strokeStyle = isHighlighted ? '#ff0000' : '#ccc';
+          ctx.lineWidth = isHighlighted ? 3 : 1;
+          ctx.strokeRect(x, y, cellWidth - 2, cellHeight - 2);
+
+          ctx.fillStyle = isHighlighted ? '#ffe0e0' : '#f9f9f9';
+          ctx.fillRect(x, y, cellWidth - 2, cellHeight - 2);
+
+          const cellIndex = i * (d1 * d2) + j * d2 + k;
+          ctx.fillStyle = isHighlighted ? '#ff0000' : '#666';
+          ctx.font = isHighlighted ? 'bold 11px monospace' : '11px monospace';
+          ctx.fillText(`${cellIndex}`, x + 5, y + 14);
+        }
+      }
+    }
+
+    // Draw flat vector below
+    ctx.font = '12px monospace';
+    ctx.fillStyle = '#333';
+
+    const flatStartY = startY + d0 * cellHeight + 60;
+    const flatCellWidth = 35;
+
+    ctx.fillText('Flat vector:', startX, flatStartY - 20);
+    ctx.fillText('[', startX, flatStartY + cellHeight);
+
+    for (let idx = 0; idx < Math.min(totalElements, canvas.width / flatCellWidth - 2); idx++) {
+      const x = startX + 15 + idx * flatCellWidth;
+      const y = flatStartY;
+
+      const isHighlightedFlat = (idx === flatIndex);
+
+      ctx.strokeStyle = isHighlightedFlat ? '#ff0000' : '#ccc';
+      ctx.lineWidth = isHighlightedFlat ? 2 : 1;
+      ctx.strokeRect(x, y, flatCellWidth - 5, cellHeight);
+
+      ctx.fillStyle = isHighlightedFlat ? '#ffe0e0' : '#f9f9f9';
+      ctx.fillRect(x, y, flatCellWidth - 5, cellHeight);
+
+      ctx.fillStyle = isHighlightedFlat ? '#ff0000' : '#666';
+      ctx.font = isHighlightedFlat ? 'bold 10px monospace' : '10px monospace';
+      ctx.fillText(`${idx}`, x + 5, y + 13);
+    }
+
+    if (totalElements > canvas.width / flatCellWidth - 2) {
+      ctx.fillText('...', startX + 15 + (canvas.width / flatCellWidth - 2) * flatCellWidth, flatStartY + cellHeight);
+    }
+
+    ctx.fillText(']', startX + 15 + Math.min(totalElements, canvas.width / flatCellWidth - 2) * flatCellWidth, flatStartY + cellHeight);
+
+    // Update formula and result
+    const formula = buildFormulaString(shape, indices);
+    formulaSpan.textContent = formula + ` = ${flatIndex}`;
+    resultSpan.textContent = `Element at [${indices.join(', ')}] is at flat index ${flatIndex}`;
+  }
+
+  computeButton.addEventListener('click', drawVisualization);
+
+  // Draw initial visualization
+  drawVisualization();
+
+  // Redraw on input changes
+  [shapeInput, iInput, jInput, kInput].forEach(input => {
+    input.addEventListener('change', drawVisualization);
+  });
+</script>
