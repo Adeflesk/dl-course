@@ -23,31 +23,31 @@ const { demoId = 'ch3-advanced-tuning' } = Astro.props;
       <h3>Build Configuration</h3>
 
       <div class="control-group">
-        <label for="problem-select">Problem:</label>
-        <select id="problem-select">
+        <label for="tuning-problem-select">Problem:</label>
+        <select id="tuning-problem-select">
           <option value="">Loading...</option>
         </select>
       </div>
 
       <div class="control-group">
-        <label for="config-optimizer">Optimizer:</label>
-        <select id="config-optimizer">
+        <label for="tuning-config-optimizer">Optimizer:</label>
+        <select id="tuning-config-optimizer">
           <option value="sgd">SGD</option>
           <option value="adam" selected>Adam</option>
         </select>
       </div>
 
       <div class="control-group">
-        <label for="config-lr">Learning Rate:</label>
-        <input id="config-lr" type="number" min="0.0001" max="1" step="0.0001" value="0.001" />
+        <label for="tuning-config-lr">Learning Rate:</label>
+        <input id="tuning-config-lr" type="number" min="0.0001" max="1" step="0.0001" value="0.001" />
       </div>
 
-      <div id="adam-params" class="adam-params">
+      <div id="tuning-adam-params" class="adam-params">
         <div class="control-group">
-          <label for="config-beta1">β₁ (momentum):</label>
+          <label for="tuning-config-beta1">β₁ (momentum):</label>
           <div class="slider-display">
             <input
-              id="config-beta1"
+              id="tuning-config-beta1"
               type="range"
               min="0.5"
               max="0.999"
@@ -55,15 +55,15 @@ const { demoId = 'ch3-advanced-tuning' } = Astro.props;
               value="0.9"
               class="param-slider"
             />
-            <span id="beta1-value" class="param-value">0.900</span>
+            <span id="tuning-beta1-value" class="param-value">0.900</span>
           </div>
         </div>
 
         <div class="control-group">
-          <label for="config-beta2">β₂ (velocity):</label>
+          <label for="tuning-config-beta2">β₂ (velocity):</label>
           <div class="slider-display">
             <input
-              id="config-beta2"
+              id="tuning-config-beta2"
               type="range"
               min="0.9"
               max="0.9999"
@@ -71,15 +71,15 @@ const { demoId = 'ch3-advanced-tuning' } = Astro.props;
               value="0.999"
               class="param-slider"
             />
-            <span id="beta2-value" class="param-value">0.9990</span>
+            <span id="tuning-beta2-value" class="param-value">0.9990</span>
           </div>
         </div>
 
         <div class="control-group">
-          <label for="config-epsilon">ε (stability):</label>
+          <label for="tuning-config-epsilon">ε (stability):</label>
           <div class="slider-display">
             <input
-              id="config-epsilon"
+              id="tuning-config-epsilon"
               type="range"
               min="-10"
               max="-6"
@@ -87,28 +87,28 @@ const { demoId = 'ch3-advanced-tuning' } = Astro.props;
               value="-8"
               class="param-slider"
             />
-            <span id="epsilon-value" class="param-value">1e-8</span>
+            <span id="tuning-epsilon-value" class="param-value">1e-8</span>
           </div>
         </div>
       </div>
 
-      <button id="add-config-btn">Add Configuration</button>
+      <button id="tuning-add-config-btn">Add Configuration</button>
     </div>
 
     <div class="tuning-saved">
       <h3>Saved Configurations</h3>
 
-      <div id="config-list" class="config-list">
-        <p id="empty-hint" class="empty-hint">Add at least 1 configuration to compare</p>
+      <div id="tuning-config-list" class="config-list">
+        <p id="tuning-empty-hint" class="empty-hint">Add at least 1 configuration to compare</p>
       </div>
 
-      <button id="run-all-btn" class="run-all-btn" disabled>Run All</button>
+      <button id="tuning-run-all-btn" class="run-all-btn" disabled>Run All</button>
     </div>
   </div>
 
   <div id="tuning-results" class="tuning-results hidden">
     <div class="plot-container">
-      <div id="comparison-plot" class="comparison-plot">
+      <div id="tuning-comparison-plot" class="comparison-plot">
         <p>Computing trajectories...</p>
       </div>
     </div>
@@ -124,7 +124,7 @@ const { demoId = 'ch3-advanced-tuning' } = Astro.props;
             <th>Converged?</th>
           </tr>
         </thead>
-        <tbody id="results-tbody"></tbody>
+        <tbody id="tuning-results-tbody"></tbody>
       </table>
     </div>
   </div>
@@ -137,23 +137,23 @@ const { demoId = 'ch3-advanced-tuning' } = Astro.props;
     constructor(demoId) {
       this.demoId = demoId;
       this.panel = new AdvancedTuningPanel();
-      this.problemSelect = document.getElementById('problem-select');
-      this.configOptimizer = document.getElementById('config-optimizer');
-      this.configLr = document.getElementById('config-lr');
-      this.adamParams = document.getElementById('adam-params');
-      this.configBeta1 = document.getElementById('config-beta1');
-      this.beta1Value = document.getElementById('beta1-value');
-      this.configBeta2 = document.getElementById('config-beta2');
-      this.beta2Value = document.getElementById('beta2-value');
-      this.configEpsilon = document.getElementById('config-epsilon');
-      this.epsilonValue = document.getElementById('epsilon-value');
-      this.addConfigBtn = document.getElementById('add-config-btn');
-      this.configList = document.getElementById('config-list');
-      this.emptyHint = document.getElementById('empty-hint');
-      this.runAllBtn = document.getElementById('run-all-btn');
+      this.problemSelect = document.getElementById('tuning-problem-select');
+      this.configOptimizer = document.getElementById('tuning-config-optimizer');
+      this.configLr = document.getElementById('tuning-config-lr');
+      this.adamParams = document.getElementById('tuning-adam-params');
+      this.configBeta1 = document.getElementById('tuning-config-beta1');
+      this.beta1Value = document.getElementById('tuning-beta1-value');
+      this.configBeta2 = document.getElementById('tuning-config-beta2');
+      this.beta2Value = document.getElementById('tuning-beta2-value');
+      this.configEpsilon = document.getElementById('tuning-config-epsilon');
+      this.epsilonValue = document.getElementById('tuning-epsilon-value');
+      this.addConfigBtn = document.getElementById('tuning-add-config-btn');
+      this.configList = document.getElementById('tuning-config-list');
+      this.emptyHint = document.getElementById('tuning-empty-hint');
+      this.runAllBtn = document.getElementById('tuning-run-all-btn');
       this.tuningResults = document.getElementById('tuning-results');
-      this.comparisonPlot = document.getElementById('comparison-plot');
-      this.resultsTbody = document.getElementById('results-tbody');
+      this.comparisonPlot = document.getElementById('tuning-comparison-plot');
+      this.resultsTbody = document.getElementById('tuning-results-tbody');
 
       this.isDarkMode =
         window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;

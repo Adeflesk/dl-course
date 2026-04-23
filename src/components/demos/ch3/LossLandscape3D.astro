@@ -21,17 +21,17 @@ const { demoId = 'ch3-loss-landscape-3d' } = Astro.props;
   <div class="landscape3d-layout">
     <div class="landscape3d-controls">
       <div class="control-group">
-        <label for="problem-select">Problem:</label>
-        <select id="problem-select">
+        <label for="loss3d-problem-select">Problem:</label>
+        <select id="loss3d-problem-select">
           <option value="">Loading...</option>
         </select>
-        <p class="problem-desc" id="problem-desc"></p>
+        <p class="problem-desc" id="loss3d-problem-desc"></p>
       </div>
 
       <div class="control-group">
-        <label for="scale-slider">Scale:</label>
+        <label for="loss3d-scale-slider">Scale:</label>
         <input
-          id="scale-slider"
+          id="loss3d-scale-slider"
           type="range"
           min="0.1"
           max="5"
@@ -39,13 +39,13 @@ const { demoId = 'ch3-loss-landscape-3d' } = Astro.props;
           value="1"
           class="param-slider"
         />
-        <span id="scale-value" class="param-value">1.000</span>
+        <span id="loss3d-scale-value" class="param-value">1.000</span>
       </div>
 
       <div class="control-group">
-        <label for="resolution-slider">Resolution:</label>
+        <label for="loss3d-resolution-slider">Resolution:</label>
         <input
-          id="resolution-slider"
+          id="loss3d-resolution-slider"
           type="range"
           min="15"
           max="50"
@@ -53,29 +53,29 @@ const { demoId = 'ch3-loss-landscape-3d' } = Astro.props;
           value="30"
           class="param-slider"
         />
-        <span id="resolution-value" class="param-value">30</span>
+        <span id="loss3d-resolution-value" class="param-value">30</span>
       </div>
 
       <div class="control-group">
         <label class="checkbox-label">
-          <input id="trajectory-toggle" type="checkbox" />
+          <input id="loss3d-trajectory-toggle" type="checkbox" />
           Show optimizer path
         </label>
       </div>
 
-      <div id="trajectory-options" class="trajectory-options hidden">
+      <div id="loss3d-trajectory-options" class="trajectory-options hidden">
         <div class="control-group">
-          <label for="traj-optimizer">Optimizer:</label>
-          <select id="traj-optimizer">
+          <label for="loss3d-traj-optimizer">Optimizer:</label>
+          <select id="loss3d-traj-optimizer">
             <option value="sgd">SGD</option>
             <option value="adam" selected>Adam</option>
           </select>
         </div>
 
         <div class="control-group">
-          <label for="traj-lr">Learning Rate:</label>
+          <label for="loss3d-traj-lr">Learning Rate:</label>
           <input
-            id="traj-lr"
+            id="loss3d-traj-lr"
             type="number"
             min="0.0001"
             max="1"
@@ -85,11 +85,11 @@ const { demoId = 'ch3-loss-landscape-3d' } = Astro.props;
         </div>
       </div>
 
-      <button id="render-btn" disabled>Render 3D Surface</button>
+      <button id="loss3d-render-btn" disabled>Render 3D Surface</button>
     </div>
 
     <div class="plot-container">
-      <div id="landscape3d-plot" class="landscape3d-plot">
+      <div id="loss3d-landscape3d-plot" class="landscape3d-plot">
         <p>Select a problem and click "Render 3D Surface" to begin</p>
       </div>
     </div>
@@ -103,18 +103,18 @@ const { demoId = 'ch3-loss-landscape-3d' } = Astro.props;
     constructor(demoId) {
       this.demoId = demoId;
       this.viz = new LossLandscape3D();
-      this.problemSelect = document.getElementById('problem-select');
-      this.problemDesc = document.getElementById('problem-desc');
-      this.scaleSlider = document.getElementById('scale-slider');
-      this.scaleValue = document.getElementById('scale-value');
-      this.resolutionSlider = document.getElementById('resolution-slider');
-      this.resolutionValue = document.getElementById('resolution-value');
-      this.trajectoryToggle = document.getElementById('trajectory-toggle');
-      this.trajectoryOptions = document.getElementById('trajectory-options');
-      this.trajOptimizer = document.getElementById('traj-optimizer');
-      this.trajLr = document.getElementById('traj-lr');
-      this.renderBtn = document.getElementById('render-btn');
-      this.plotDiv = document.getElementById('landscape3d-plot');
+      this.problemSelect = document.getElementById('loss3d-problem-select');
+      this.problemDesc = document.getElementById('loss3d-problem-desc');
+      this.scaleSlider = document.getElementById('loss3d-scale-slider');
+      this.scaleValue = document.getElementById('loss3d-scale-value');
+      this.resolutionSlider = document.getElementById('loss3d-resolution-slider');
+      this.resolutionValue = document.getElementById('loss3d-resolution-value');
+      this.trajectoryToggle = document.getElementById('loss3d-trajectory-toggle');
+      this.trajectoryOptions = document.getElementById('loss3d-trajectory-options');
+      this.trajOptimizer = document.getElementById('loss3d-traj-optimizer');
+      this.trajLr = document.getElementById('loss3d-traj-lr');
+      this.renderBtn = document.getElementById('loss3d-render-btn');
+      this.plotDiv = document.getElementById('loss3d-landscape3d-plot');
 
       this.isDarkMode =
         window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;

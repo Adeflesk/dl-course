@@ -21,40 +21,40 @@ const { demoId = 'ch3-custom-problem' } = Astro.props;
   <div class="builder-layout">
     <div class="builder-controls">
       <div class="control-group">
-        <label for="problem-select">Problem Type:</label>
-        <select id="problem-select">
+        <label for="customprob-problem-select">Problem Type:</label>
+        <select id="customprob-problem-select">
           <option value="">Loading...</option>
         </select>
-        <p class="problem-desc" id="problem-desc"></p>
+        <p class="problem-desc" id="customprob-problem-desc"></p>
       </div>
 
-      <div id="param-sliders" class="param-sliders"></div>
+      <div id="customprob-param-sliders" class="param-sliders"></div>
 
-      <button id="visualize-btn" disabled>Visualize Landscape</button>
+      <button id="customprob-visualize-btn" disabled>Visualize Landscape</button>
     </div>
 
     <div class="landscape-container">
-      <div id="landscape-plot" class="landscape-plot">
+      <div id="customprob-landscape-plot" class="landscape-plot">
         <p>Select a problem and adjust parameters to see the landscape</p>
       </div>
     </div>
   </div>
 
-  <div id="trajectory-section" class="trajectory-section hidden">
+  <div id="customprob-trajectory-section" class="trajectory-section hidden">
     <h3>Optimizer Test Run</h3>
     <div class="trajectory-controls">
       <div class="control-group">
-        <label for="traj-optimizer">Optimizer:</label>
-        <select id="traj-optimizer">
+        <label for="customprob-traj-optimizer">Optimizer:</label>
+        <select id="customprob-traj-optimizer">
           <option value="sgd">SGD</option>
           <option value="adam" selected>Adam</option>
         </select>
       </div>
 
       <div class="control-group">
-        <label for="traj-lr">Learning Rate:</label>
+        <label for="customprob-traj-lr">Learning Rate:</label>
         <input
-          id="traj-lr"
+          id="customprob-traj-lr"
           type="number"
           min="0.0001"
           max="1"
@@ -63,10 +63,10 @@ const { demoId = 'ch3-custom-problem' } = Astro.props;
         />
       </div>
 
-      <button id="run-trajectory-btn">Run Optimizer</button>
+      <button id="customprob-run-trajectory-btn">Run Optimizer</button>
     </div>
 
-    <div id="trajectory-plot" class="trajectory-plot"></div>
+    <div id="customprob-trajectory-plot" class="trajectory-plot"></div>
   </div>
 </div>
 
@@ -77,16 +77,16 @@ const { demoId = 'ch3-custom-problem' } = Astro.props;
     constructor(demoId) {
       this.demoId = demoId;
       this.builder = new CustomProblemBuilder();
-      this.problemSelect = document.getElementById('problem-select');
-      this.problemDesc = document.getElementById('problem-desc');
-      this.paramSliders = document.getElementById('param-sliders');
-      this.visualizeBtn = document.getElementById('visualize-btn');
-      this.landscapePlot = document.getElementById('landscape-plot');
-      this.trajectorySection = document.getElementById('trajectory-section');
-      this.trajOptimizer = document.getElementById('traj-optimizer');
-      this.trajLr = document.getElementById('traj-lr');
-      this.runTrajBtn = document.getElementById('run-trajectory-btn');
-      this.trajectoryPlot = document.getElementById('trajectory-plot');
+      this.problemSelect = document.getElementById('customprob-problem-select');
+      this.problemDesc = document.getElementById('customprob-problem-desc');
+      this.paramSliders = document.getElementById('customprob-param-sliders');
+      this.visualizeBtn = document.getElementById('customprob-visualize-btn');
+      this.landscapePlot = document.getElementById('customprob-landscape-plot');
+      this.trajectorySection = document.getElementById('customprob-trajectory-section');
+      this.trajOptimizer = document.getElementById('customprob-traj-optimizer');
+      this.trajLr = document.getElementById('customprob-traj-lr');
+      this.runTrajBtn = document.getElementById('customprob-run-trajectory-btn');
+      this.trajectoryPlot = document.getElementById('customprob-trajectory-plot');
 
       this.currentProblemId = null;
       this.currentParams = {};

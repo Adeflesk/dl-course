@@ -21,24 +21,24 @@ const { demoId = 'ch3-weight-update-viz' } = Astro.props;
   <div class="weight-viz-layout">
     <div class="weight-viz-controls">
       <div class="control-group">
-        <label for="problem-select">Problem:</label>
-        <select id="problem-select">
+        <label for="weightviz-problem-select">Problem:</label>
+        <select id="weightviz-problem-select">
           <option value="">Loading...</option>
         </select>
       </div>
 
       <div class="control-group">
-        <label for="optimizer-select">Optimizer:</label>
-        <select id="optimizer-select">
+        <label for="weightviz-optimizer-select">Optimizer:</label>
+        <select id="weightviz-optimizer-select">
           <option value="sgd">SGD</option>
           <option value="adam" selected>Adam</option>
         </select>
       </div>
 
       <div class="control-group">
-        <label for="lr-input">Learning Rate:</label>
+        <label for="weightviz-lr-input">Learning Rate:</label>
         <input
-          id="lr-input"
+          id="weightviz-lr-input"
           type="number"
           min="0.0001"
           max="1"
@@ -48,10 +48,10 @@ const { demoId = 'ch3-weight-update-viz' } = Astro.props;
       </div>
 
       <div class="control-group">
-        <label for="steps-slider">Steps:</label>
+        <label for="weightviz-steps-slider">Steps:</label>
         <div class="slider-display">
           <input
-            id="steps-slider"
+            id="weightviz-steps-slider"
             type="range"
             min="50"
             max="300"
@@ -59,34 +59,34 @@ const { demoId = 'ch3-weight-update-viz' } = Astro.props;
             value="100"
             class="param-slider"
           />
-          <span id="steps-value" class="param-value">100</span>
+          <span id="weightviz-steps-value" class="param-value">100</span>
         </div>
       </div>
 
-      <button id="run-viz-btn" disabled>Run Training</button>
+      <button id="weightviz-run-viz-btn" disabled>Run Training</button>
     </div>
 
     <div class="plot-container">
-      <div id="weight-plots" class="weight-plots">
+      <div id="weightviz-weight-plots" class="weight-plots">
         <p>Configure optimizer and click "Run Training" to begin</p>
       </div>
     </div>
   </div>
 
-  <div id="metrics-row" class="metrics-row hidden">
+  <div id="weightviz-metrics-row" class="metrics-row hidden">
     <h3>Summary Statistics</h3>
     <div class="metrics-cards">
       <div class="metric-card">
         <div class="metric-label">Final Loss</div>
-        <div class="metric-value" id="final-loss">—</div>
+        <div class="metric-value" id="weightviz-final-loss">—</div>
       </div>
       <div class="metric-card">
         <div class="metric-label">Final Gradient Norm</div>
-        <div class="metric-value" id="final-grad">—</div>
+        <div class="metric-value" id="weightviz-final-grad">—</div>
       </div>
       <div class="metric-card">
         <div class="metric-label">Steps to Loss < 0.01</div>
-        <div class="metric-value" id="converge-step">—</div>
+        <div class="metric-value" id="weightviz-converge-step">—</div>
       </div>
     </div>
   </div>
@@ -99,17 +99,17 @@ const { demoId = 'ch3-weight-update-viz' } = Astro.props;
     constructor(demoId) {
       this.demoId = demoId;
       this.viz = new WeightUpdateViz();
-      this.problemSelect = document.getElementById('problem-select');
-      this.optimizerSelect = document.getElementById('optimizer-select');
-      this.lrInput = document.getElementById('lr-input');
-      this.stepsSlider = document.getElementById('steps-slider');
-      this.stepsValue = document.getElementById('steps-value');
-      this.runBtn = document.getElementById('run-viz-btn');
-      this.plotDiv = document.getElementById('weight-plots');
-      this.metricsRow = document.getElementById('metrics-row');
-      this.finalLossEl = document.getElementById('final-loss');
-      this.finalGradEl = document.getElementById('final-grad');
-      this.convergeStepEl = document.getElementById('converge-step');
+      this.problemSelect = document.getElementById('weightviz-problem-select');
+      this.optimizerSelect = document.getElementById('weightviz-optimizer-select');
+      this.lrInput = document.getElementById('weightviz-lr-input');
+      this.stepsSlider = document.getElementById('weightviz-steps-slider');
+      this.stepsValue = document.getElementById('weightviz-steps-value');
+      this.runBtn = document.getElementById('weightviz-run-viz-btn');
+      this.plotDiv = document.getElementById('weightviz-weight-plots');
+      this.metricsRow = document.getElementById('weightviz-metrics-row');
+      this.finalLossEl = document.getElementById('weightviz-final-loss');
+      this.finalGradEl = document.getElementById('weightviz-final-grad');
+      this.convergeStepEl = document.getElementById('weightviz-converge-step');
 
       this.isDarkMode =
         window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
