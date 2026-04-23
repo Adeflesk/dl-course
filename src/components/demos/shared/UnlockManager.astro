@@ -21,7 +21,7 @@ const {
   </div>
 </div>
 
-<script define:vars={{ featureId, defaultUnlocked }}>
+<script>
   import { useUnlockState } from '../../../js/demos/utils/unlock-state';
 
   // Helper function to hide the unlock hint element
@@ -34,29 +34,39 @@ const {
     }
   }
 
-  // Initialize unlock state for this feature
-  const unlockState = useUnlockState(featureId, defaultUnlocked);
+  // Initialize all unlock managers on the page
+  const managers = document.querySelectorAll('.unlock-manager');
+  
+  managers.forEach(manager => {
+    const featureId = manager.getAttribute('data-feature-id');
+    const defaultUnlocked = manager.getAttribute('data-default-unlocked') === 'true';
+    
+    if (!featureId) return;
 
-  // Check if already unlocked and hide hint if so
-  if (unlockState.isUnlocked()) {
-    hideUnlockHint(featureId);
-  }
+    // Initialize unlock state for this feature
+    const unlockState = useUnlockState(featureId, defaultUnlocked);
 
-  // Listen for unlock events via subscription
-  unlockState.subscribe(() => {
-    hideUnlockHint(featureId);
-  });
-
-  // Also listen for custom unlock events from other parts of the app
-  window.addEventListener('unlock', (event) => {
-    if (event.detail && event.detail.featureId === featureId) {
+    // Check if already unlocked and hide hint if so
+    if (unlockState.isUnlocked()) {
       hideUnlockHint(featureId);
     }
-  });
 
-  // Make unlock state available globally for direct access if needed
-  window.__unlockStates = window.__unlockStates || {};
-  window.__unlockStates[featureId] = unlockState;
+    // Listen for unlock events via subscription
+    unlockState.subscribe(() => {
+      hideUnlockHint(featureId);
+    });
+
+    // Also listen for custom unlock events from other parts of the app
+    window.addEventListener('unlock', ((event: CustomEvent) => {
+      if (event.detail && event.detail.featureId === featureId) {
+        hideUnlockHint(featureId);
+      }
+    }) as EventListener);
+
+    // Make unlock state available globally for direct access if needed
+    window.__unlockStates = window.__unlockStates || {};
+    window.__unlockStates[featureId] = unlockState;
+  });
 </script>
 
 <style>

@@ -389,6 +389,6 @@ EMSCRIPTEN_BINDINGS(transformer_inference) {
         .function("getAttentionWeights", &TransformerInference::getAttentionWeights)
         .function("generateGreedy", &TransformerInference::generateGreedy)
         .function("generateSample", &TransformerInference::generateSample);
-    emscripten::register_vector<int>("VectorInt");
-    emscripten::register_vector<float>("VectorFloat");
+
+
 }
