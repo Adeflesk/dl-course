@@ -20,11 +20,11 @@ const { demoId = 'ch3-convergence-race' } = Astro.props;
 
   <div class="race-controls">
     <div class="control-group">
-      <label for="problem-select">Problem Landscape:</label>
-      <select id="problem-select">
+      <label for="race-problem-select">Problem Landscape:</label>
+      <select id="race-problem-select">
         <option value="">Loading...</option>
       </select>
-      <p class="problem-description" id="problem-description"></p>
+      <p class="problem-description" id="race-problem-description"></p>
     </div>
 
     <div class="control-group">
@@ -33,7 +33,7 @@ const { demoId = 'ch3-convergence-race' } = Astro.props;
         <label class="checkbox-label">
           <input
             type="checkbox"
-            class="optimizer-checkbox"
+            class="race-optimizer-checkbox"
             data-optimizer="sgd"
             checked
           />
@@ -42,7 +42,7 @@ const { demoId = 'ch3-convergence-race' } = Astro.props;
         <label class="checkbox-label">
           <input
             type="checkbox"
-            class="optimizer-checkbox"
+            class="race-optimizer-checkbox"
             data-optimizer="adam"
             checked
           />
@@ -54,11 +54,11 @@ const { demoId = 'ch3-convergence-race' } = Astro.props;
     <button id="race-button" disabled>Load Race</button>
   </div>
 
-  <div id="plot-container" class="plot-placeholder">
+  <div id="race-plot-container" class="plot-placeholder">
     <p>Select a problem and click "Load Race" to begin</p>
   </div>
 
-  <div id="stats-container" class="stats-hidden">
+  <div id="race-stats-container" class="stats-hidden">
     <div class="stats-table">
       <table>
         <thead>
@@ -69,7 +69,7 @@ const { demoId = 'ch3-convergence-race' } = Astro.props;
             <th>Steps to Converge</th>
           </tr>
         </thead>
-        <tbody id="stats-tbody"></tbody>
+        <tbody id="race-stats-tbody"></tbody>
       </table>
     </div>
   </div>
@@ -81,13 +81,13 @@ const { demoId = 'ch3-convergence-race' } = Astro.props;
   class ConvergenceRaceDemo {
     constructor() {
       this.race = new ConvergenceRace();
-      this.problemSelect = document.getElementById('problem-select');
-      this.problemDescription = document.getElementById('problem-description');
-      this.optimizerCheckboxes = document.querySelectorAll('.optimizer-checkbox');
+      this.problemSelect = document.getElementById('race-problem-select');
+      this.problemDescription = document.getElementById('race-problem-description');
+      this.optimizerCheckboxes = document.querySelectorAll('.race-optimizer-checkbox');
       this.raceButton = document.getElementById('race-button');
-      this.plotContainer = document.getElementById('plot-container');
-      this.statsContainer = document.getElementById('stats-container');
-      this.statsTbody = document.getElementById('stats-tbody');
+      this.plotContainer = document.getElementById('race-plot-container');
+      this.statsContainer = document.getElementById('race-stats-container');
+      this.statsTbody = document.getElementById('race-stats-tbody');
       this.currentTrajectories = [];
       this.isDarkMode =
         window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
