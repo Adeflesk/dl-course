@@ -12,7 +12,7 @@ interface Props {
 const { demoId = 'ch3-custom-problem' } = Astro.props;
 ---
 
-<div class="custom-problem-container">
+<div class="custom-problem-container" data-demo-id={demoId}>
   <div class="problem-header">
     <h2>Custom Problem Builder</h2>
     <p class="subtitle">Create and tune optimization landscapes</p>
@@ -70,11 +70,12 @@ const { demoId = 'ch3-custom-problem' } = Astro.props;
   </div>
 </div>
 
-<script define:vars={{ demoId }}>
+<script>
   import { CustomProblemBuilder } from '../../../js/demos/ch3/custom-problem-builder';
 
   class CustomProblemBuilderDemo {
-    constructor() {
+    constructor(demoId) {
+      this.demoId = demoId;
       this.builder = new CustomProblemBuilder();
       this.problemSelect = document.getElementById('problem-select');
       this.problemDesc = document.getElementById('problem-desc');
@@ -334,10 +335,10 @@ const { demoId = 'ch3-custom-problem' } = Astro.props;
     }
 
     triggerFirstInteraction() {
-      if (this.firstInteraction) {
+      if (this.firstInteraction && this.demoId) {
         window.dispatchEvent(
           new CustomEvent('unlock', {
-            detail: { featureId: demoId },
+            detail: { featureId: this.demoId },
           })
         );
         this.firstInteraction = false;
@@ -345,12 +346,16 @@ const { demoId = 'ch3-custom-problem' } = Astro.props;
     }
   }
 
+  function initDemo() {
+    const container = document.querySelector('.custom-problem-container');
+    const demoId = container ? container.getAttribute('data-demo-id') : null;
+    new CustomProblemBuilderDemo(demoId);
+  }
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      new CustomProblemBuilderDemo();
-    });
+    document.addEventListener('DOMContentLoaded', initDemo);
   } else {
-    new CustomProblemBuilderDemo();
+    initDemo();
   }
 </script>
 

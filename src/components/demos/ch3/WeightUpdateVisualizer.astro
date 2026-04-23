@@ -12,7 +12,7 @@ interface Props {
 const { demoId = 'ch3-weight-update-viz' } = Astro.props;
 ---
 
-<div class="weight-viz-container">
+<div class="weight-viz-container" data-demo-id={demoId}>
   <div class="weight-viz-header">
     <h2>Weight Update Dynamics</h2>
     <p class="subtitle">Track how loss and gradient norms evolve during training</p>
@@ -92,11 +92,12 @@ const { demoId = 'ch3-weight-update-viz' } = Astro.props;
   </div>
 </div>
 
-<script define:vars={{ demoId }}>
+<script>
   import { WeightUpdateViz } from '../../../js/demos/ch3/weight-update-viz';
 
   class WeightUpdateVizDemo {
-    constructor() {
+    constructor(demoId) {
+      this.demoId = demoId;
       this.viz = new WeightUpdateViz();
       this.problemSelect = document.getElementById('problem-select');
       this.optimizerSelect = document.getElementById('optimizer-select');
@@ -195,10 +196,10 @@ const { demoId = 'ch3-weight-update-viz' } = Astro.props;
     }
 
     triggerFirstInteraction() {
-      if (this.firstInteraction) {
+      if (this.firstInteraction && this.demoId) {
         window.dispatchEvent(
           new CustomEvent('unlock', {
-            detail: { featureId: demoId },
+            detail: { featureId: this.demoId },
           })
         );
         this.firstInteraction = false;
@@ -206,12 +207,16 @@ const { demoId = 'ch3-weight-update-viz' } = Astro.props;
     }
   }
 
+  function initDemo() {
+    const container = document.querySelector('.weight-viz-container');
+    const demoId = container ? container.getAttribute('data-demo-id') : null;
+    new WeightUpdateVizDemo(demoId);
+  }
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      new WeightUpdateVizDemo();
-    });
+    document.addEventListener('DOMContentLoaded', initDemo);
   } else {
-    new WeightUpdateVizDemo();
+    initDemo();
   }
 </script>
 

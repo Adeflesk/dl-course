@@ -12,7 +12,7 @@ interface Props {
 const { demoId = 'ch3-loss-landscape-3d' } = Astro.props;
 ---
 
-<div class="landscape3d-container">
+<div class="landscape3d-container" data-demo-id={demoId}>
   <div class="landscape3d-header">
     <h2>3D Loss Landscape</h2>
     <p class="subtitle">Explore the geometry of optimization problems in 3D</p>
@@ -96,11 +96,12 @@ const { demoId = 'ch3-loss-landscape-3d' } = Astro.props;
   </div>
 </div>
 
-<script define:vars={{ demoId }}>
+<script>
   import { LossLandscape3D } from '../../../js/demos/ch3/loss-landscape-3d';
 
   class LossLandscape3DDemo {
-    constructor() {
+    constructor(demoId) {
+      this.demoId = demoId;
       this.viz = new LossLandscape3D();
       this.problemSelect = document.getElementById('problem-select');
       this.problemDesc = document.getElementById('problem-desc');
@@ -209,10 +210,10 @@ const { demoId = 'ch3-loss-landscape-3d' } = Astro.props;
     }
 
     triggerFirstInteraction() {
-      if (this.firstInteraction) {
+      if (this.firstInteraction && this.demoId) {
         window.dispatchEvent(
           new CustomEvent('unlock', {
-            detail: { featureId: demoId },
+            detail: { featureId: this.demoId },
           })
         );
         this.firstInteraction = false;
@@ -220,12 +221,16 @@ const { demoId = 'ch3-loss-landscape-3d' } = Astro.props;
     }
   }
 
+  function initDemo() {
+    const container = document.querySelector('.landscape3d-container');
+    const demoId = container ? container.getAttribute('data-demo-id') : null;
+    new LossLandscape3DDemo(demoId);
+  }
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      new LossLandscape3DDemo();
-    });
+    document.addEventListener('DOMContentLoaded', initDemo);
   } else {
-    new LossLandscape3DDemo();
+    initDemo();
   }
 </script>
 

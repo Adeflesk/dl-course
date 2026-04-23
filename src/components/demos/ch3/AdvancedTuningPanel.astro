@@ -12,7 +12,7 @@ interface Props {
 const { demoId = 'ch3-advanced-tuning' } = Astro.props;
 ---
 
-<div class="tuning-container">
+<div class="tuning-container" data-demo-id={demoId}>
   <div class="tuning-header">
     <h2>Hyperparameter Sensitivity Explorer</h2>
     <p class="subtitle">Add optimizer configurations and compare their convergence behavior</p>
@@ -130,11 +130,12 @@ const { demoId = 'ch3-advanced-tuning' } = Astro.props;
   </div>
 </div>
 
-<script define:vars={{ demoId }}>
+<script>
   import { AdvancedTuningPanel } from '../../../js/demos/ch3/advanced-tuning-panel';
 
   class AdvancedTuningPanelDemo {
-    constructor() {
+    constructor(demoId) {
+      this.demoId = demoId;
       this.panel = new AdvancedTuningPanel();
       this.problemSelect = document.getElementById('problem-select');
       this.configOptimizer = document.getElementById('config-optimizer');
@@ -305,10 +306,10 @@ const { demoId = 'ch3-advanced-tuning' } = Astro.props;
     }
 
     triggerFirstInteraction() {
-      if (this.firstInteraction) {
+      if (this.firstInteraction && this.demoId) {
         window.dispatchEvent(
           new CustomEvent('unlock', {
-            detail: { featureId: demoId },
+            detail: { featureId: this.demoId },
           })
         );
         this.firstInteraction = false;
@@ -316,12 +317,16 @@ const { demoId = 'ch3-advanced-tuning' } = Astro.props;
     }
   }
 
+  function initDemo() {
+    const container = document.querySelector('.tuning-container');
+    const demoId = container ? container.getAttribute('data-demo-id') : null;
+    new AdvancedTuningPanelDemo(demoId);
+  }
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      new AdvancedTuningPanelDemo();
-    });
+    document.addEventListener('DOMContentLoaded', initDemo);
   } else {
-    new AdvancedTuningPanelDemo();
+    initDemo();
   }
 </script>
 

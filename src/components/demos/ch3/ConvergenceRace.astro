@@ -12,7 +12,7 @@ interface Props {
 const { demoId = 'ch3-convergence-race' } = Astro.props;
 ---
 
-<div class="convergence-race-container">
+<div class="convergence-race-container" data-demo-id={demoId}>
   <div class="race-header">
     <h2>Optimizer Convergence Race</h2>
     <p class="subtitle">Watch SGD and Adam race to minimize loss on different landscapes</p>
@@ -75,7 +75,7 @@ const { demoId = 'ch3-convergence-race' } = Astro.props;
   </div>
 </div>
 
-<script define:vars={{ demoId }}>
+<script>
   import { ConvergenceRace } from '../../../js/demos/ch3/convergence-race';
 
   class ConvergenceRaceDemo {
@@ -91,6 +91,8 @@ const { demoId = 'ch3-convergence-race' } = Astro.props;
       this.currentTrajectories = [];
       this.isDarkMode =
         window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const container = document.querySelector('.convergence-race-container');
+      this.demoId = container ? container.dataset.demoId : 'ch3-convergence-race';
 
       this.init();
     }
@@ -241,7 +243,7 @@ const { demoId = 'ch3-convergence-race' } = Astro.props;
     triggerUnlock() {
       window.dispatchEvent(
         new CustomEvent('unlock', {
-          detail: { featureId: demoId },
+          detail: { featureId: this.demoId },
         })
       );
     }
