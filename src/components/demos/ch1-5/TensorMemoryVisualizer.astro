@@ -142,14 +142,24 @@ const clientId = Math.random().toString(36).substring(7);
     return parts.join(' + ');
   }
 
+  function updateInputBounds() {
+    const shape = parseShape(shapeInput.value);
+    if (shape.length >= 3) {
+      iInput.max = Math.max(0, shape[0] - 1);
+      jInput.max = Math.max(0, shape[1] - 1);
+      kInput.max = Math.max(0, shape[2] - 1);
+    }
+  }
+
   function drawVisualization() {
+    updateInputBounds();
     const shape = parseShape(shapeInput.value);
     const indices = [parseInt(iInput.value), parseInt(jInput.value), parseInt(kInput.value)];
 
     // Validate indices
     for (let i = 0; i < shape.length; i++) {
       if (indices[i] < 0 || indices[i] >= shape[i]) {
-        alert(`Index ${i} out of bounds for dimension ${shape[i]}`);
+        resultSpan.textContent = `Error: Index ${i} out of bounds for dimension ${shape[i]}`;
         return;
       }
     }
@@ -243,7 +253,12 @@ const clientId = Math.random().toString(36).substring(7);
   drawVisualization();
 
   // Redraw on input changes
-  [shapeInput, iInput, jInput, kInput].forEach(input => {
+  shapeInput.addEventListener('change', () => {
+    updateInputBounds();
+    drawVisualization();
+  });
+
+  [iInput, jInput, kInput].forEach(input => {
     input.addEventListener('change', drawVisualization);
   });
 </script>
