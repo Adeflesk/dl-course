@@ -1,0 +1,108 @@
+---
+title: "Weight Initialization: The Hidden Lever"
+chapter: 3.5
+description: "Xavier initialization, variance preservation, and how bad initialization kills gradients in deep networks"
+---
+
+import InitializationComparison from '../../components/demos/ch3-5/InitializationComparison.astro';
+
+## The Problem: Exploding and Vanishing Gradients
+
+Suppose you initialize a 100-layer neural network with random weights $W \sim \mathcal{N}(0, 1)$ (standard normal).
+
+During forward pass, each layer computes:
+$$z^{(l)} = W^{(l)} \cdot a^{(l-1)} + b^{(l)}$$
+
+If each weight is $\sim \mathcal{N}(0, 1)$ and you have $n$ inputs to a layer, the output variance grows:
+
+$$\text{Var}(z^{(l)}) = n \cdot \text{Var}(W^{(l)}) \cdot \text{Var}(a^{(l-1)}) = n \cdot 1 \cdot \text{Var}(a^{(l-1)})$$
+
+**After 100 layers:** variance explodes! $z$ becomes huge, activations saturate (sigmoid/tanh near 0 or 1), and gradients vanish.
+
+Similarly, during backprop, gradients multiply by weight matrices layer-by-layer. If weights are too small, gradients shrink. If too large, they explode.
+
+## Xavier Initialization
+
+**Xavier (Glorot) initialization** solves this by scaling weights so that **variance is preserved through each layer**.
+
+The idea: Initialize weights $W$ such that variance of the output equals variance of the input, regardless of layer size.
+
+**Theorem:** For a layer with $n_{in}$ inputs and $n_{out}$ outputs, initialize:
+$$W \sim \mathcal{U}\left(-\sqrt{\frac{6}{n_{in} + n_{out}}}, \sqrt{\frac{6}{n_{in} + n_{out}}}\right)$$
+
+Or equivalently (with Gaussian):
+$$W \sim \mathcal{N}\left(0, \sqrt{\frac{2}{n_{in} + n_{out}}}\right)$$
+
+**Why this works:**
+
+For a layer: $z = Wx + b$
+
+$$\text{Var}(z) = \text{Var}(W) \cdot \text{Var}(x) \cdot n_{in}$$
+
+If $\text{Var}(x) = \sigma^2$ (from previous layer), we want $\text{Var}(z) = \sigma^2$:
+
+$$\text{Var}(W) \cdot \sigma^2 \cdot n_{in} = \sigma^2$$
+$$\text{Var}(W) = \frac{1}{n_{in}}$$
+
+Similarly, for backprop (propagating gradients backward), we derive $\text{Var}(W) = \frac{1}{n_{out}}$.
+
+**Averaging both constraints:**
+$$\text{Var}(W) = \frac{1}{\frac{1}{2}(n_{in} + n_{out})} = \frac{2}{n_{in} + n_{out}}$$
+
+This is Xavier initialization!
+
+## Implementation in tensorflowccp
+
+```cpp
+// In nn/Linear.h
+class Linear : public Module {
+    Tensor weight;  // [input_size, output_size]
+    Tensor bias;
+
+public:
+    Linear(int input_size, int output_size) {
+        // Xavier initialization
+        float limit = std::sqrt(6.0f / (input_size + output_size));
+        
+        weight = Tensor::uniform(-limit, limit, {input_size, output_size});
+        bias = Tensor::zeros({1, output_size});
+    }
+    
+    Tensor forward(const Tensor& x) override {
+        return matmul(x, weight) + bias;
+    }
+};
+```
+
+## Empirical Demonstration: Gradient Flow Across Layers
+
+Initialize a 10-layer network with:
+1. **Bad init:** Weights $\sim \mathcal{N}(0, 1)$
+2. **Xavier init:** Weights $\sim \mathcal{N}(0, \sqrt{\frac{2}{n_{in} + n_{out}}})$
+
+Train on simple data, record gradient magnitudes at each layer during backprop:
+
+<InitializationComparison />
+
+**Observe:** With bad init, gradients in early layers vanish to near-zero. With Xavier, gradients are stable across all layers.
+
+## Why This Matters
+
+Without proper initialization:
+- Early layers don't learn (vanishing gradients)
+- Middle layers explode (overflow, NaN)
+- Training fails or is extremely slow
+
+With Xavier:
+- **All layers learn at similar rates**
+- **Stable variance** through forward and backward pass
+- **Fast convergence** without tuning learning rates heavily
+
+## Key Takeaways
+
+1. **Initialization is not "set and forget"** — it fundamentally affects trainability
+2. **Xavier preserves variance** through forward and backward pass
+3. **Deep networks require careful init** — random init fails beyond ~5 layers
+4. **Rule of thumb:** $\text{Var}(W) \approx \frac{1}{n_{in}}$ for forward, $\frac{1}{n_{out}}$ for backward, average them
+
+Next lesson: How these initialized networks become numerically unstable during training, and how to fix it.

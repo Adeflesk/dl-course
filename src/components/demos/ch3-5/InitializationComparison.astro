@@ -1,0 +1,271 @@
+---
+// InitializationComparison.astro
+// Visualize gradient magnitude across layers for different initializations
+
+interface Props {
+  width?: number;
+  height?: number;
+}
+
+const { width = 800, height = 400 } = Astro.props;
+const clientId = Math.random().toString(36).substring(7);
+---
+
+<div id={`comparison-${clientId}`} class="init-comparison">
+  <div class="controls">
+    <button id={`run-bad-${clientId}`} class="run-button">Run: Bad Init (σ=1)</button>
+    <button id={`run-xavier-${clientId}`} class="run-button">Run: Xavier Init</button>
+    <button id={`clear-${clientId}`} class="clear-button">Clear</button>
+  </div>
+
+  <div class="canvas-container">
+    <canvas id={`canvas-${clientId}`} width={width} height={height}></canvas>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item">
+      <span class="legend-color" style="background: #d32f2f;"></span>
+      Bad Init: gradients vanish in early layers
+    </div>
+    <div class="legend-item">
+      <span class="legend-color" style="background: #4caf50;"></span>
+      Xavier: stable gradients across all layers
+    </div>
+  </div>
+
+  <p id={`info-${clientId}`} class="info-text">Click a button to visualize gradient flow</p>
+</div>
+
+<style>
+  .init-comparison {
+    border: 1px solid #ccc;
+    padding: 1.5rem;
+    border-radius: 8px;
+    background: #f9f9f9;
+  }
+
+  .controls {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .run-button, .clear-button {
+    padding: 0.5rem 1rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    background: white;
+    transition: all 0.2s;
+  }
+
+  .run-button:hover {
+    background: #e3f2fd;
+    border-color: #1976d2;
+  }
+
+  .clear-button:hover {
+    background: #fff3e0;
+    border-color: #f57c00;
+  }
+
+  .canvas-container {
+    margin-bottom: 1rem;
+  }
+
+  canvas {
+    border: 1px solid #ddd;
+    background: white;
+    display: block;
+    border-radius: 4px;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .legend {
+    display: flex;
+    gap: 2rem;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .legend-color {
+    display: inline-block;
+    width: 20px;
+    height: 3px;
+    border-radius: 2px;
+  }
+
+  .info-text {
+    font-size: 0.9rem;
+    font-family: monospace;
+    margin: 0;
+    padding: 0.5rem;
+    background: white;
+    border-radius: 4px;
+    border-left: 3px solid #ff9800;
+  }
+</style>
+
+<script define:vars={{clientId, width, height}}>
+  const canvas = document.getElementById(`canvas-${clientId}`);
+  const ctx = canvas.getContext('2d');
+  const runBadBtn = document.getElementById(`run-bad-${clientId}`);
+  const runXavierBtn = document.getElementById(`run-xavier-${clientId}`);
+  const clearBtn = document.getElementById(`clear-${clientId}`);
+  const infoText = document.getElementById(`info-${clientId}`);
+
+  let datasets = [];
+
+  function simulateGradients(initType) {
+    const numLayers = 10;
+    const inputSize = 64;
+    const hiddenSize = 64;
+    const gradients = [1.0]; // Start with gradient of 1.0 at output
+
+    for (let layer = 0; layer < numLayers; layer++) {
+      let variance;
+      if (initType === 'bad') {
+        variance = 1.0; // σ² = 1
+      } else if (initType === 'xavier') {
+        const fanIn = layer === 0 ? inputSize : hiddenSize;
+        const fanOut = hiddenSize;
+        variance = 2.0 / (fanIn + fanOut);
+      }
+
+      // Gradient magnitude decreases/increases proportionally to weight variance
+      const prevGradMag = gradients[gradients.length - 1];
+      const nextGradMag = prevGradMag * Math.sqrt(variance * hiddenSize);
+      gradients.push(Math.min(nextGradMag, 100)); // Cap at 100 for visualization
+    }
+
+    return gradients;
+  }
+
+  function drawChart() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw axes
+    const margin = 40;
+    const plotWidth = canvas.width - 2 * margin;
+    const plotHeight = canvas.height - 2 * margin;
+
+    ctx.strokeStyle = '#ccc';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(margin, margin);
+    ctx.lineTo(margin, canvas.height - margin);
+    ctx.lineTo(canvas.width - margin, canvas.height - margin);
+    ctx.stroke();
+
+    // Y-axis label
+    ctx.fillStyle = '#666';
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText('Gradient Magnitude', margin - 10, margin - 20);
+
+    // X-axis label
+    ctx.textAlign = 'center';
+    ctx.fillText('Layer #', canvas.width - margin + 20, canvas.height - margin + 30);
+
+    // Draw each dataset
+    const colors = ['#d32f2f', '#4caf50'];
+    datasets.forEach((dataset, idx) => {
+      const gradients = dataset.gradients;
+      const color = colors[idx % colors.length];
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+
+      for (let i = 0; i < gradients.length; i++) {
+        const x = margin + (i / (gradients.length - 1)) * plotWidth;
+        // Log scale for visualization
+        const logVal = Math.log10(Math.max(gradients[i], 0.001) + 1);
+        const maxLog = Math.log10(100 + 1);
+        const y = canvas.height - margin - (logVal / maxLog) * plotHeight;
+
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+
+        // Draw point
+        ctx.fillStyle = color;
+        ctx.fillRect(x - 3, y - 3, 6, 6);
+      }
+
+      ctx.stroke();
+
+      // Label
+      ctx.fillStyle = color;
+      ctx.font = 'bold 12px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(dataset.label, margin + 10, margin + 20 + idx * 20);
+    });
+
+    // Y-axis ticks
+    ctx.strokeStyle = '#ddd';
+    ctx.lineWidth = 1;
+    ctx.fillStyle = '#666';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'right';
+
+    const yTicks = [0.001, 0.01, 0.1, 1, 10, 100];
+    yTicks.forEach(tick => {
+      const logVal = Math.log10(tick + 1);
+      const maxLog = Math.log10(100 + 1);
+      const y = canvas.height - margin - (logVal / maxLog) * plotHeight;
+
+      ctx.beginPath();
+      ctx.moveTo(margin - 5, y);
+      ctx.lineTo(margin + 5, y);
+      ctx.stroke();
+
+      ctx.fillText(tick.toFixed(3), margin - 10, y + 4);
+    });
+
+    // X-axis ticks
+    for (let i = 0; i <= 10; i++) {
+      const x = margin + (i / 10) * plotWidth;
+
+      ctx.strokeStyle = '#ddd';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, canvas.height - margin - 5);
+      ctx.lineTo(x, canvas.height - margin + 5);
+      ctx.stroke();
+
+      ctx.fillStyle = '#666';
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(i, x, canvas.height - margin + 15);
+    }
+  }
+
+  function addDataset(initType) {
+    const label = initType === 'bad' ? 'Bad Init (σ=1)' : 'Xavier Init';
+    const gradients = simulateGradients(initType);
+
+    datasets.push({ label, gradients, initType });
+    infoText.textContent = `Added: ${label} (gradient range: ${Math.min(...gradients).toFixed(4)} to ${Math.max(...gradients).toFixed(4)})`;
+
+    drawChart();
+  }
+
+  function clear() {
+    datasets = [];
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    infoText.textContent = 'Click a button to visualize gradient flow';
+  }
+
+  runBadBtn.addEventListener('click', () => addDataset('bad'));
+  runXavierBtn.addEventListener('click', () => addDataset('xavier'));
+  clearBtn.addEventListener('click', clear);
+</script>
