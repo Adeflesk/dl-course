@@ -1,0 +1,395 @@
+---
+// ComputationGraphTracer.astro
+// Build a computation graph, visualize it, and trace backward pass
+
+interface Props {
+  width?: number;
+  height?: number;
+}
+
+const { width = 900, height = 700 } = Astro.props;
+const clientId = Math.random().toString(36).substring(7);
+---
+
+<div id={`tracer-${clientId}`} class="graph-tracer">
+  <div class="controls">
+    <h4>Build a Computation Graph</h4>
+    <div class="button-group">
+      <button id={`add-add-${clientId}`} class="op-button">+ Add</button>
+      <button id={`add-mul-${clientId}`} class="op-button">× Multiply</button>
+      <button id={`add-relu-${clientId}`} class="op-button">ReLU</button>
+      <button id={`reset-${clientId}`} class="action-button">Reset</button>
+    </div>
+    <div class="info-panel">
+      <p id={`graph-info-${clientId}`}>Operations: 0 | Inputs: 0 | Output: None</p>
+      <p id={`topo-order-${clientId}`} class="code">Topological order: —</p>
+    </div>
+  </div>
+
+  <div class="canvas-container">
+    <canvas id={`graph-canvas-${clientId}`} width={width} height={height}></canvas>
+  </div>
+
+  <div class="controls">
+    <button id={`trace-backward-${clientId}`} class="trace-button" disabled>Trace Backward →</button>
+    <p id={`step-info-${clientId}`} class="trace-info">Click "Trace Backward" to start</p>
+  </div>
+</div>
+
+<style>
+  .graph-tracer {
+    border: 1px solid #ccc;
+    padding: 1.5rem;
+    border-radius: 8px;
+    background: #f9f9f9;
+  }
+
+  .controls {
+    margin-bottom: 1rem;
+  }
+
+  .controls h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.95rem;
+  }
+
+  .button-group {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+
+  .op-button, .action-button, .trace-button {
+    padding: 0.5rem 1rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    background: white;
+    transition: all 0.2s;
+  }
+
+  .op-button:hover {
+    background: #e8f0ff;
+    border-color: #007acc;
+  }
+
+  .action-button:hover {
+    background: #fff5f5;
+    border-color: #d32f2f;
+  }
+
+  .trace-button {
+    background: #007acc;
+    color: white;
+    border: none;
+    font-weight: bold;
+    margin-top: 1rem;
+  }
+
+  .trace-button:hover:not(:disabled) {
+    background: #005a9e;
+  }
+
+  .trace-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .info-panel {
+    background: white;
+    padding: 0.75rem;
+    border-radius: 4px;
+    border-left: 3px solid #007acc;
+    font-size: 0.9rem;
+    font-family: monospace;
+    line-height: 1.4;
+  }
+
+  .info-panel p {
+    margin: 0.25rem 0;
+  }
+
+  .code {
+    background: #f0f0f0;
+    padding: 0.25rem 0.5rem;
+    border-radius: 2px;
+  }
+
+  .canvas-container {
+    margin: 1rem 0;
+  }
+
+  canvas {
+    border: 1px solid #ddd;
+    background: white;
+    display: block;
+    border-radius: 4px;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .trace-info {
+    font-size: 0.9rem;
+    font-family: monospace;
+    margin: 0.5rem 0;
+    padding: 0.5rem;
+    background: white;
+    border-radius: 4px;
+    border-left: 3px solid #f57c00;
+  }
+</style>
+
+<script define:vars={{clientId, width, height}}>
+  // Graph data structure
+  const graph = {
+    nodes: [],
+    edges: [],
+    inputNodes: [],
+    outputNode: null
+  };
+
+  const canvas = document.getElementById(`graph-canvas-${clientId}`);
+  const ctx = canvas.getContext('2d');
+  const addAddBtn = document.getElementById(`add-add-${clientId}`);
+  const addMulBtn = document.getElementById(`add-mul-${clientId}`);
+  const addReluBtn = document.getElementById(`add-relu-${clientId}`);
+  const resetBtn = document.getElementById(`reset-${clientId}`);
+  const traceBtn = document.getElementById(`trace-backward-${clientId}`);
+  const graphInfo = document.getElementById(`graph-info-${clientId}`);
+  const topoInfo = document.getElementById(`topo-order-${clientId}`);
+  const stepInfo = document.getElementById(`step-info-${clientId}`);
+
+  let nodeCounter = 0;
+  let animationStep = 0;
+  let isTracing = false;
+  const topoOrder = [];
+
+  function createInputNode() {
+    return {
+      id: nodeCounter++,
+      type: 'input',
+      label: `x${Math.floor(nodeCounter / 10)}`,
+      x: 80 + Math.random() * 40,
+      y: 100 + Math.random() * 200,
+      inputs: [],
+      gradient: null
+    };
+  }
+
+  function createOpNode(type) {
+    return {
+      id: nodeCounter++,
+      type: type, // 'add', 'mul', 'relu'
+      label: type === 'add' ? '+' : (type === 'mul' ? '×' : 'ReLU'),
+      x: 300 + Math.random() * 100,
+      y: 200,
+      inputs: [],
+      gradient: null
+    };
+  }
+
+  function addOperation(opType) {
+    const newOp = createOpNode(opType);
+
+    // Find available inputs (unconnected input nodes or recent operations)
+    const availableInputs = graph.nodes.filter(n =>
+      n.type === 'input' || (n.type !== 'input' && graph.edges.filter(e => e.from === n.id).length < 2)
+    );
+
+    if (availableInputs.length >= 1) {
+      newOp.inputs = [availableInputs[0].id];
+      if (opType === 'add' && availableInputs.length >= 2) {
+        newOp.inputs.push(availableInputs[1].id);
+      }
+
+      // Create edges
+      newOp.inputs.forEach(inputId => {
+        graph.edges.push({ from: inputId, to: newOp.id });
+      });
+    }
+
+    graph.nodes.push(newOp);
+    graph.outputNode = newOp.id;
+
+    // Add input nodes if needed
+    if (graph.nodes.filter(n => n.type === 'input').length === 0) {
+      const input1 = createInputNode();
+      input1.x = 100;
+      input1.y = 150;
+      graph.nodes.push(input1);
+      graph.inputNodes.push(input1.id);
+
+      const input2 = createInputNode();
+      input2.x = 100;
+      input2.y = 300;
+      graph.nodes.push(input2);
+      graph.inputNodes.push(input2.id);
+    }
+
+    updateInfo();
+    draw();
+  }
+
+  function reset() {
+    graph.nodes = [];
+    graph.edges = [];
+    graph.inputNodes = [];
+    graph.outputNode = null;
+    nodeCounter = 0;
+    animationStep = 0;
+    isTracing = false;
+    traceBtn.disabled = true;
+    stepInfo.textContent = 'Click "Trace Backward" to start';
+    updateInfo();
+    draw();
+  }
+
+  function topologicalSort() {
+    const visited = new Set();
+    const order = [];
+
+    function dfs(nodeId) {
+      if (visited.has(nodeId)) return;
+      visited.add(nodeId);
+
+      const node = graph.nodes.find(n => n.id === nodeId);
+      node.inputs.forEach(inputId => dfs(inputId));
+      order.push(nodeId);
+    }
+
+    if (graph.outputNode !== null) {
+      dfs(graph.outputNode);
+    }
+
+    return order;
+  }
+
+  function updateInfo() {
+    const numOps = graph.nodes.filter(n => n.type !== 'input').length;
+    const numInputs = graph.nodes.filter(n => n.type === 'input').length;
+    const output = graph.outputNode !== null ?
+      graph.nodes.find(n => n.id === graph.outputNode).label : 'None';
+
+    graphInfo.textContent = `Operations: ${numOps} | Inputs: ${numInputs} | Output: ${output}`;
+
+    if (graph.outputNode !== null) {
+      const topo = topologicalSort();
+      const topoLabels = topo.map(id => {
+        const node = graph.nodes.find(n => n.id === id);
+        return node.label + id;
+      }).join(' → ');
+      topoInfo.textContent = `Topological order: ${topoLabels}`;
+      traceBtn.disabled = false;
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw edges
+    ctx.strokeStyle = '#ccc';
+    ctx.lineWidth = 2;
+    graph.edges.forEach(edge => {
+      const fromNode = graph.nodes.find(n => n.id === edge.from);
+      const toNode = graph.nodes.find(n => n.id === edge.to);
+
+      if (fromNode && toNode) {
+        ctx.beginPath();
+        ctx.moveTo(fromNode.x + 20, fromNode.y);
+        ctx.lineTo(toNode.x - 20, toNode.y);
+        ctx.stroke();
+
+        // Draw arrowhead
+        const angle = Math.atan2(toNode.y - fromNode.y, toNode.x - fromNode.x);
+        ctx.fillStyle = '#ccc';
+        ctx.beginPath();
+        ctx.moveTo(toNode.x - 20, toNode.y);
+        ctx.lineTo(toNode.x - 25 - 5 * Math.cos(angle), toNode.y - 5 * Math.sin(angle));
+        ctx.lineTo(toNode.x - 25 + 5 * Math.sin(angle), toNode.y - 5 * Math.cos(angle));
+        ctx.fill();
+      }
+    });
+
+    // Draw nodes
+    graph.nodes.forEach(node => {
+      const isOutput = node.id === graph.outputNode;
+      const radius = 25;
+
+      // Node circle
+      ctx.fillStyle = node.type === 'input' ? '#e8f5e9' :
+                     (isOutput ? '#fff3e0' : '#f3e5f5');
+      ctx.strokeStyle = node.type === 'input' ? '#4caf50' :
+                       (isOutput ? '#ff9800' : '#9c27b0');
+      ctx.lineWidth = isOutput ? 3 : 2;
+
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.stroke();
+
+      // Node label
+      ctx.fillStyle = '#000';
+      ctx.font = 'bold 14px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(node.label, node.x, node.y);
+
+      // Node ID (small)
+      ctx.fillStyle = '#666';
+      ctx.font = '10px monospace';
+      ctx.fillText(`#${node.id}`, node.x, node.y + 20);
+    });
+  }
+
+  function traceBackward() {
+    if (isTracing) return;
+    isTracing = true;
+    const topo = topologicalSort();
+    const topoReverse = topo.reverse();
+
+    animationStep = 0;
+
+    function nextStep() {
+      if (animationStep >= topoReverse.length) {
+        stepInfo.textContent = 'Backward pass complete!';
+        isTracing = false;
+        return;
+      }
+
+      const nodeId = topoReverse[animationStep];
+      const node = graph.nodes.find(n => n.id === nodeId);
+
+      // Highlight current node
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      draw();
+
+      ctx.fillStyle = 'rgba(255, 193, 7, 0.3)';
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, 35, 0, 2 * Math.PI);
+      ctx.fill();
+
+      const inputLabels = node.inputs.map(id => {
+        const inputNode = graph.nodes.find(n => n.id === id);
+        return inputNode.label + id;
+      }).join(', ');
+
+      stepInfo.textContent = `Step ${animationStep + 1}: Computing gradient for ${node.label}${nodeId} (inputs: ${inputLabels || 'none'})`;
+
+      animationStep++;
+      setTimeout(nextStep, 800);
+    }
+
+    nextStep();
+  }
+
+  addAddBtn.addEventListener('click', () => addOperation('add'));
+  addMulBtn.addEventListener('click', () => addOperation('mul'));
+  addReluBtn.addEventListener('click', () => addOperation('relu'));
+  resetBtn.addEventListener('click', reset);
+  traceBtn.addEventListener('click', traceBackward);
+
+  // Initial draw
+  draw();
+</script>

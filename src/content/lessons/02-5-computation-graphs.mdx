@@ -1,0 +1,164 @@
+---
+title: "Computation Graphs: Tracing the Gradient Flow"
+chapter: 2.5
+description: "Operation base class hierarchy, how the graph is built and traversed, topological sorting for backward pass"
+---
+
+import ComputationGraphTracer from '../../components/demos/ch2-5/ComputationGraphTracer.astro';
+
+## The Operation Base Class
+
+Every mathematical operation in tensorflowccp — addition, multiplication, activation, matrix multiply — inherits from `Operation`:
+
+```cpp
+class Operation : public std::enable_shared_from_this<Operation> {
+public:
+    virtual ~Operation() = default;
+    
+    // Forward pass: compute output given inputs
+    virtual std::vector<float> forward(const std::vector<std::vector<float>>& inputs) = 0;
+    
+    // Backward pass: compute gradient w.r.t. inputs given gradient w.r.t. output
+    virtual std::vector<std::vector<float>> backward(const std::vector<float>& grad_output) = 0;
+    
+    // Store references to input operations (for graph traversal)
+    std::vector<std::shared_ptr<Operation>> inputs;
+};
+```
+
+**Key insight:** Every operation is a node in a graph. During forward pass, we compute output. During backward, we traverse the graph to compute gradients.
+
+## Example: Building a Computation Graph
+
+```cpp
+// Forward pass: z = (x + y) * 2
+Tensor x = /* ... */;
+Tensor y = /* ... */;
+
+// Step 1: Create addition operation
+auto add_op = std::make_shared<AddOperation>();
+add_op->inputs = {x.op, y.op};  // Store references to inputs
+Tensor sum = Tensor(add_op->forward({x.data, y.data}), add_op);
+
+// Step 2: Create multiplication operation
+auto mul_op = std::make_shared<MultiplyOperation>();
+mul_op->inputs = {sum.op};  // Store reference to addition result
+Tensor z = Tensor(mul_op->forward({sum.data, scalar_2}), mul_op);
+
+// Computation graph is now:
+//     x.op    y.op
+//        \   /
+//       add_op
+//          |
+//      sum.op
+//          |
+//       mul_op
+//          |
+//         z.op
+```
+
+When you call `z.backward()`, it traverses this graph backward, computing gradients.
+
+## Topological Sort for Backward Pass
+
+The backward pass must compute gradients in the **correct order**: if operation C depends on B, which depends on A, we must compute gradients for C before B (because B's gradient depends on C's).
+
+**Topological sort** achieves this:
+
+$$\text{Topological Order} = \text{DFS-based traversal that respects dependencies}$$
+
+Algorithm:
+1. Start at the output node (z.op)
+2. Recursively visit all inputs (depth-first)
+3. Add node to sorted list **after** visiting all inputs
+4. Result: nodes appear in order such that all dependencies are processed first
+
+Example with z = (x + y) * 2:
+
+```
+1. Start at mul_op
+2. Visit its input: add_op
+3. Visit add_op's inputs: x.op and y.op
+4. No more inputs, add y.op to sorted list
+5. Back to add_op inputs, add x.op to sorted list
+6. Back to add_op, add it to sorted list
+7. Back to mul_op, add it to sorted list
+
+Topological order: [y.op, x.op, add_op, mul_op]
+```
+
+When we process backward:
+- mul_op computes grad_sum = grad_z × 2
+- add_op computes grad_x and grad_y using grad_sum
+- x and y gradients are now ready
+
+## Shared Pointers and Lifetimes
+
+Each operation holds `std::shared_ptr` to its inputs. This has two effects:
+
+**1. Memory is kept alive:**
+```cpp
+auto add_op = std::make_shared<AddOperation>();
+add_op->inputs = {x.op, y.op};
+// Even if x and y go out of scope, x.op and y.op stay alive
+// because add_op holds shared_ptr references
+```
+
+**2. Graph is garbage collected automatically:**
+```cpp
+Tensor z = /* result of computation */;
+// If nothing else holds references to intermediate operations,
+// they are automatically freed when z goes out of scope
+// (because z is the last holder of shared_ptr references)
+```
+
+## The Backward Pass in Practice
+
+```cpp
+void Tensor::backward(float grad_value) {
+    // 1. Compute topological order
+    std::vector<std::shared_ptr<Operation>> topo_order = topological_sort(this->op);
+    
+    // 2. Initialize gradient for output
+    std::map<Operation*, Tensor> gradients;
+    gradients[this->op] = Tensor({grad_value}, /* ... */);
+    
+    // 3. Process each operation in reverse topological order
+    for (auto it = topo_order.rbegin(); it != topo_order.rend(); ++it) {
+        auto op = *it;
+        
+        // Get gradient w.r.t. this operation's output
+        Tensor grad_output = gradients[op];
+        
+        // Compute gradients w.r.t. inputs using the operation's backward()
+        std::vector<Tensor> grad_inputs = op->backward(grad_output);
+        
+        // Accumulate gradients (a tensor might be input to multiple operations)
+        for (size_t i = 0; i < op->inputs.size(); ++i) {
+            if (gradients.find(op->inputs[i].get()) == gradients.end()) {
+                gradients[op->inputs[i].get()] = grad_inputs[i];
+            } else {
+                gradients[op->inputs[i].get()] += grad_inputs[i];
+            }
+        }
+    }
+    
+    // 4. Gradient for each tensor is now available in `gradients` map
+}
+```
+
+## Interactive Graph Tracer
+
+Use the visualizer below to build a computation graph and watch the backward pass:
+
+<ComputationGraphTracer />
+
+## Key Takeaways
+
+1. **Every operation is a node** in the computation graph
+2. **Forward pass**: traverse graph from inputs to output, computing values
+3. **Backward pass**: traverse graph from output to inputs using topological sort
+4. **Shared pointers**: keep intermediate operations alive during training, auto-free when done
+5. **Gradient accumulation**: a tensor used in multiple operations accumulates gradients
+
+Next lesson: We'll see how initialization affects gradient flow through this graph.
