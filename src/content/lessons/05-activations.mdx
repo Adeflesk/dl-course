@@ -4,6 +4,8 @@ chapter: 5
 description: "ReLU, Sigmoid, Tanh — why nonlinearity is necessary"
 ---
 
+import NumericalStabilityDemo from '../../components/demos/ch5/NumericalStabilityDemo.astro';
+
 ## Why nonlinearity matters
 
 A stack of linear layers without activations is just one big linear layer:
@@ -57,3 +59,94 @@ The $\max(x)$ subtraction is numerical stabilization — it prevents overflow wh
 <div class="callout">
 In practice: use ReLU in hidden layers. Use Sigmoid only for binary output, Softmax (via CrossEntropyLoss) for multi-class output. Tanh is a reasonable choice for small networks where ReLU dying is a concern.
 </div>
+
+## Numerical Stability in Practice
+
+The mathematical definitions of activation functions are clean, but real floating-point arithmetic creates subtle problems. Understanding these is crucial for building models that don't silently produce NaN or infinite values.
+
+### Sigmoid and Tanh Saturation
+
+Sigmoid: $\sigma(x) = \frac{1}{1 + e^{-x}}$
+
+For large positive $x$ (e.g., $x = 100$):
+- $e^{-x} \approx 0$, so $\sigma(x) \approx 1$
+- **Derivative:** $\sigma'(x) = \sigma(x)(1 - \sigma(x)) \approx 1 \cdot 0 = 0$
+- **Result:** Gradient vanishes to machine epsilon
+
+This is **saturation**: the function is flat, so gradients can't flow backward.
+
+**In practice:** Sigmoid/Tanh saturate after |x| > 6. In deep networks without careful initialization, early layers produce |x| > 10, saturating the entire network.
+
+**Fix:** Use ReLU (no saturation except at 0) or ensure careful initialization (which we covered in lesson 3.5).
+
+### Softmax Overflow
+
+Softmax: $\text{softmax}(x_i) = \frac{e^{x_i}}{\sum_j e^{x_j}}$
+
+If any $x_i > 700$:
+- $e^{700}$ overflows (exceeds float32 max ~3.4e38)
+- Result is `inf`, then `inf / inf = NaN`
+- **The entire batch is ruined.**
+
+**Log-sum-exp trick:** Subtract the maximum before exponentiating:
+
+$$\text{softmax}(x_i) = \frac{e^{x_i - \max(x)}}{\sum_j e^{x_j - \max(x)}}$$
+
+This is mathematically equivalent (the $e^{-\max(x)}$ cancels in numerator and denominator) but numerically safe:
+- Max value input to exp: 0
+- All exponents are $\leq 0$
+- All results are in (0, 1], never overflow
+
+**In tensorflowccp:**
+
+```cpp
+// Stable softmax implementation
+Tensor softmax(const Tensor& x) {
+    Tensor max_x = max(x, axis=1);  // Shape: (batch_size, 1)
+    Tensor shifted = x - max_x;      // Broadcast subtraction
+    Tensor exp_x = exp(shifted);     // Safe: all values ≤ 0
+    Tensor sum_exp = sum(exp_x, axis=1);  // Sum per row
+    return exp_x / sum_exp;
+}
+```
+
+### Interactive Demo: Softmax Stability
+
+Below is an interactive visualization showing what happens as input logits grow:
+
+<NumericalStabilityDemo />
+
+**Observe:** As the max logit increases, naive softmax produces NaN or inf. Stable softmax handles even logit values of 1000 correctly.
+
+### Gradient Clipping for RNNs
+
+During backprop through time (BPTT), gradients can explode if weights are large or sequences are long. A common fix: **gradient clipping**.
+
+Before optimizer step, clip the gradient norm:
+
+```cpp
+// After loss.backward(), before optimizer.step()
+float grad_norm = 0.0f;
+for (auto param : model.parameters()) {
+    grad_norm += param->grad.norm() ** 2;
+}
+grad_norm = std::sqrt(grad_norm);
+
+if (grad_norm > MAX_GRAD_NORM) {
+    for (auto param : model.parameters()) {
+        param->grad *= MAX_GRAD_NORM / grad_norm;  // Scale down
+    }
+}
+```
+
+This prevents extreme updates that would corrupt learned representations.
+
+### Key Stability Insights
+
+1. **Sigmoid/Tanh** saturate → use ReLU or manage initialization
+2. **Softmax** overflows → use log-sum-exp trick
+3. **Gradients** can explode → use gradient clipping in RNNs/Transformers
+4. **Batch norm** helps → normalizes activations to a reasonable range, preventing saturation
+5. **Test with large inputs** — if you only test with default PyTorch shapes, you won't catch overflow
+
+These details separate code that "works on toy data" from code that works in production.

@@ -1,0 +1,250 @@
+---
+// NumericalStabilityDemo.astro
+// Demonstrate softmax overflow and log-sum-exp fix
+
+interface Props {
+  width?: number;
+  height?: number;
+}
+
+const { width = 800, height = 500 } = Astro.props;
+const clientId = Math.random().toString(36).substring(7);
+---
+
+<div id={`stability-${clientId}`} class="stability-demo">
+  <div class="controls">
+    <label>
+      Logits max value:
+      <input type="range" id={`input-max-${clientId}`} min="0" max="1000" value="100" step="10" />
+      <span id={`display-max-${clientId}`}>100</span>
+    </label>
+  </div>
+
+  <div class="canvas-container">
+    <canvas id={`canvas-${clientId}`} width={width} height={height}></canvas>
+  </div>
+
+  <div class="comparison">
+    <div class="method">
+      <h4>Naive Softmax</h4>
+      <p id={`naive-result-${clientId}`} class="result">Computing...</p>
+      <p id={`naive-status-${clientId}`} class="status"></p>
+    </div>
+    <div class="method">
+      <h4>Log-Sum-Exp (Stable)</h4>
+      <p id={`stable-result-${clientId}`} class="result">Computing...</p>
+      <p id={`stable-status-${clientId}`} class="status"></p>
+    </div>
+  </div>
+</div>
+
+<style>
+  .stability-demo {
+    border: 1px solid #ccc;
+    padding: 1.5rem;
+    border-radius: 8px;
+    background: #f9f9f9;
+  }
+
+  .controls {
+    margin-bottom: 1.5rem;
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .controls label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+  }
+
+  .controls input[type="range"] {
+    width: 200px;
+  }
+
+  .controls span {
+    font-family: monospace;
+    font-weight: bold;
+    min-width: 60px;
+  }
+
+  .canvas-container {
+    margin-bottom: 1.5rem;
+  }
+
+  canvas {
+    border: 1px solid #ddd;
+    background: white;
+    display: block;
+    border-radius: 4px;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .comparison {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  .method {
+    background: white;
+    padding: 1rem;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+  }
+
+  .method h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.95rem;
+  }
+
+  .result {
+    font-family: monospace;
+    font-size: 0.85rem;
+    margin: 0.5rem 0;
+    word-break: break-all;
+  }
+
+  .status {
+    margin: 0;
+    font-size: 0.85rem;
+    padding: 0.5rem;
+    border-radius: 3px;
+  }
+
+  .status.ok {
+    background: #e8f5e9;
+    color: #2e7d32;
+  }
+
+  .status.overflow {
+    background: #ffebee;
+    color: #c62828;
+    font-weight: bold;
+  }
+</style>
+
+<script define:vars={{clientId, width, height}}>
+  const canvas = document.getElementById(`canvas-${clientId}`);
+  const ctx = canvas.getContext('2d');
+  const inputMax = document.getElementById(`input-max-${clientId}`);
+  const displayMax = document.getElementById(`display-max-${clientId}`);
+  const naiveResult = document.getElementById(`naive-result-${clientId}`);
+  const naiveStatus = document.getElementById(`naive-status-${clientId}`);
+  const stableResult = document.getElementById(`stable-result-${clientId}`);
+  const stableStatus = document.getElementById(`stable-status-${clientId}`);
+
+  function naiveSoftmax(logits) {
+    // Direct computation: softmax(x) = exp(x) / sum(exp(x))
+    const exps = logits.map(x => Math.exp(x));
+    const sum = exps.reduce((a, b) => a + b, 0);
+    return exps.map(e => e / sum);
+  }
+
+  function stableSoftmax(logits) {
+    // Log-sum-exp trick: subtract max before exp
+    const maxLogit = Math.max(...logits);
+    const exps = logits.map(x => Math.exp(x - maxLogit));
+    const sum = exps.reduce((a, b) => a + b, 0);
+    return exps.map(e => e / sum);
+  }
+
+  function update() {
+    const maxVal = parseInt(inputMax.value);
+    displayMax.textContent = maxVal;
+
+    // Create logits: [maxVal, maxVal/2, 0]
+    const logits = [maxVal, maxVal / 2, 0];
+
+    // Naive softmax
+    let naiveProbs, naiveOverflow = false;
+    try {
+      naiveProbs = naiveSoftmax(logits);
+      naiveOverflow = naiveProbs.some(p => !isFinite(p));
+    } catch (e) {
+      naiveOverflow = true;
+      naiveProbs = [NaN, NaN, NaN];
+    }
+
+    // Stable softmax
+    const stableProbs = stableSoftmax(logits);
+
+    // Update results
+    const formatProb = (p) => isFinite(p) ? p.toFixed(6) : 'inf';
+    naiveResult.textContent = `[${naiveProbs.map(formatProb).join(', ')}]`;
+    naiveStatus.className = 'status ' + (naiveOverflow ? 'overflow' : 'ok');
+    naiveStatus.textContent = naiveOverflow ? '⚠️ OVERFLOW: exp(' + maxVal + ') is too large' : '✓ OK';
+
+    stableResult.textContent = `[${stableProbs.map(formatProb).join(', ')}]`;
+    stableStatus.className = 'status ok';
+    stableStatus.textContent = '✓ OK: Subtracted max before exp';
+
+    // Draw visualization
+    drawVisualization(logits, naiveProbs, stableProbs, naiveOverflow);
+  }
+
+  function drawVisualization(logits, naiveProbs, stableProbs, overflow) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const margin = 40;
+    const chartWidth = (canvas.width - 3 * margin) / 2;
+    const chartHeight = canvas.height - 2 * margin;
+
+    // Draw naive chart
+    drawChart(margin, margin, chartWidth, chartHeight, 'Naive', logits, naiveProbs, overflow, '#d32f2f');
+
+    // Draw stable chart
+    drawChart(2 * margin + chartWidth, margin, chartWidth, chartHeight, 'Stable', logits, stableProbs, false, '#4caf50');
+  }
+
+  function drawChart(x, y, w, h, title, logits, probs, overflow, color) {
+    ctx.fillStyle = '#000';
+    ctx.font = 'bold 13px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(title, x + 5, y - 10);
+
+    // Draw axes
+    ctx.strokeStyle = '#ccc';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x + 30, y);
+    ctx.lineTo(x + 30, y + h);
+    ctx.lineTo(x + w, y + h);
+    ctx.stroke();
+
+    // Bar chart
+    const barWidth = (w - 50) / logits.length;
+    const maxProb = Math.max(...probs.filter(isFinite), 1);
+
+    for (let i = 0; i < logits.length; i++) {
+      const barX = x + 40 + i * barWidth;
+      const barHeight = (probs[i] || 0) / maxProb * (h - 20);
+      const barY = y + h - 20 - barHeight;
+
+      ctx.fillStyle = overflow && i === 0 ? '#ffcdd2' : color;
+      ctx.fillRect(barX, barY, barWidth - 5, barHeight);
+
+      ctx.strokeStyle = '#666';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(barX, barY, barWidth - 5, barHeight);
+
+      // Label
+      ctx.fillStyle = '#666';
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${(probs[i] || 0).toFixed(3)}`, barX + barWidth / 2 - 2.5, barY - 5);
+    }
+
+    // Y-axis label
+    ctx.fillStyle = '#999';
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText('prob', x + 25, y - 5);
+  }
+
+  inputMax.addEventListener('input', update);
+  update(); // Initial draw
+</script>
