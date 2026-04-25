@@ -1,0 +1,297 @@
+---
+// EmbeddingGradientFlow.astro
+// Visualize which embedding rows get updated during backward pass
+
+interface Props {
+  width?: number;
+  height?: number;
+}
+
+const { width = 800, height = 600 } = Astro.props;
+const clientId = Math.random().toString(36).substring(7);
+---
+
+<div id={`embedding-${clientId}`} class="embedding-demo">
+  <div class="controls">
+    <div class="vocab-config">
+      <label>
+        Vocab size:
+        <input type="number" id={`vocab-${clientId}`} min="5" max="100" value="20" />
+      </label>
+      <label>
+        Embed dim: 3 (fixed for visualization)
+      </label>
+    </div>
+
+    <div class="token-input">
+      <label>
+        Token sequence:
+        <input type="text" id={`tokens-${clientId}`} value="2,5,2,7,5,5" placeholder="e.g., 0,1,2,3" />
+      </label>
+      <button id={`update-${clientId}`} class="update-button">Update</button>
+    </div>
+  </div>
+
+  <div class="canvas-container">
+    <canvas id={`canvas-${clientId}`} width={width} height={height}></canvas>
+  </div>
+
+  <div class="stats">
+    <p id={`stats-${clientId}`} class="stats-text">Enter token sequence above</p>
+  </div>
+</div>
+
+<style>
+  .embedding-demo {
+    border: 1px solid #ccc;
+    padding: 1.5rem;
+    border-radius: 8px;
+    background: #f9f9f9;
+  }
+
+  .controls {
+    display: flex;
+    gap: 2rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .vocab-config, .token-input {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    font-size: 0.9rem;
+  }
+
+  .vocab-config label, .token-input label {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  input[type="number"], input[type="text"] {
+    padding: 0.4rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.9rem;
+  }
+
+  .update-button {
+    padding: 0.4rem 1rem;
+    background: #1976d2;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+  }
+
+  .update-button:hover {
+    background: #1565c0;
+  }
+
+  .canvas-container {
+    margin-bottom: 1rem;
+  }
+
+  canvas {
+    border: 1px solid #ddd;
+    background: white;
+    display: block;
+    border-radius: 4px;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .stats {
+    background: white;
+    padding: 1rem;
+    border-radius: 4px;
+    border-left: 3px solid #1976d2;
+  }
+
+  .stats-text {
+    margin: 0;
+    font-family: monospace;
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+</style>
+
+<script define:vars={{clientId}}>
+  const vocabInput = document.getElementById(`vocab-${clientId}`);
+  const tokensInput = document.getElementById(`tokens-${clientId}`);
+  const updateBtn = document.getElementById(`update-${clientId}`);
+  const canvas = document.getElementById(`canvas-${clientId}`);
+  const statsText = document.getElementById(`stats-${clientId}`);
+  const ctx = canvas.getContext('2d');
+
+  function parseTokens(str) {
+    return str.split(',').map(s => {
+      const n = parseInt(s.trim());
+      return isNaN(n) ? null : n;
+    }).filter(n => n !== null);
+  }
+
+  function update() {
+    const vocabSize = parseInt(vocabInput.value) || 20;
+    const tokenIds = parseTokens(tokensInput.value);
+
+    if (tokenIds.length === 0) {
+      statsText.textContent = 'Invalid token sequence';
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      return;
+    }
+
+    // Validate token IDs
+    if (Math.max(...tokenIds) >= vocabSize) {
+      statsText.textContent = `Invalid: token ID >= vocab size (${vocabSize})`;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      return;
+    }
+
+    // Count gradient updates per row
+    const gradientCounts = new Array(vocabSize).fill(0);
+    tokenIds.forEach(id => {
+      gradientCounts[id]++;
+    });
+
+    // Draw
+    drawVisualization(gradientCounts, tokenIds);
+
+    // Stats
+    const uniqueTokens = new Set(tokenIds).size;
+    const totalUpdates = tokenIds.length;
+    const maxUpdates = Math.max(...gradientCounts);
+    statsText.innerHTML = `
+      <strong>Scatter-Add Summary:</strong><br/>
+      Sequence: [${tokenIds.join(', ')}]<br/>
+      Unique tokens: ${uniqueTokens} of ${vocabSize} vocab rows<br/>
+      Total updates: ${totalUpdates} (one per token)<br/>
+      Max updates to any row: ${maxUpdates}<br/>
+      <strong>Updated rows:</strong> ${Array.from({length: vocabSize}, (_, i) => gradientCounts[i] > 0 ? i : null).filter(x => x !== null).join(', ')}
+    `;
+  }
+
+  function drawVisualization(gradientCounts, tokenIds) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const margin = 40;
+    const barWidth = (canvas.width - 2 * margin) / gradientCounts.length;
+    const maxCount = Math.max(...gradientCounts, 1);
+    const chartHeight = canvas.height - 2 * margin;
+
+    // Draw axes
+    ctx.strokeStyle = '#ccc';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(margin, margin);
+    ctx.lineTo(margin, canvas.height - margin);
+    ctx.lineTo(canvas.width - margin, canvas.height - margin);
+    ctx.stroke();
+
+    // Title
+    ctx.fillStyle = '#000';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('Gradient Updates per Embedding Row', margin, margin - 15);
+
+    // Y-axis label
+    ctx.font = '11px monospace';
+    ctx.fillStyle = '#666';
+    ctx.textAlign = 'right';
+    ctx.fillText('# updates', margin - 15, margin - 5);
+
+    // Bars
+    for (let i = 0; i < gradientCounts.length; i++) {
+      const count = gradientCounts[i];
+      const barHeight = (count / maxCount) * chartHeight;
+      const x = margin + i * barWidth;
+      const y = canvas.height - margin - barHeight;
+
+      // Color based on update count
+      let color;
+      if (count === 0) {
+        color = '#f0f0f0';
+      } else if (count === 1) {
+        color = '#81c784';
+      } else if (count <= 3) {
+        color = '#fbc02d';
+      } else {
+        color = '#e53935';
+      }
+
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y, barWidth - 1, barHeight);
+
+      ctx.strokeStyle = '#ccc';
+      ctx.lineWidth = 0.5;
+      ctx.strokeRect(x, y, barWidth - 1, barHeight);
+
+      // Label count if > 0
+      if (count > 0) {
+        ctx.fillStyle = '#000';
+        ctx.font = 'bold 9px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(count, x + barWidth / 2 - 0.5, y - 3);
+      }
+
+      // X-axis label (every nth row to avoid clutter)
+      if (i % Math.max(1, Math.floor(gradientCounts.length / 10)) === 0) {
+        ctx.fillStyle = '#666';
+        ctx.font = '9px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(i, x + barWidth / 2 - 0.5, canvas.height - margin + 15);
+      }
+    }
+
+    // Y-axis ticks
+    ctx.fillStyle = '#999';
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'right';
+
+    for (let count = 0; count <= Math.ceil(maxCount); count++) {
+      const y = canvas.height - margin - (count / maxCount) * chartHeight;
+
+      ctx.beginPath();
+      ctx.moveTo(margin - 5, y);
+      ctx.lineTo(margin + 5, y);
+      ctx.stroke();
+
+      if (count % Math.max(1, Math.ceil(maxCount / 5)) === 0) {
+        ctx.fillText(count, margin - 10, y + 3);
+      }
+    }
+
+    // Legend
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'left';
+    const legendX = canvas.width - 150;
+    const legendY = margin + 10;
+
+    [
+      { color: '#f0f0f0', label: 'Not used' },
+      { color: '#81c784', label: '1 update' },
+      { color: '#fbc02d', label: '2-3 updates' },
+      { color: '#e53935', label: '4+ updates' }
+    ].forEach((item, i) => {
+      ctx.fillStyle = item.color;
+      ctx.fillRect(legendX, legendY + i * 18, 12, 12);
+
+      ctx.strokeStyle = '#999';
+      ctx.strokeRect(legendX, legendY + i * 18, 12, 12);
+
+      ctx.fillStyle = '#333';
+      ctx.fillText(item.label, legendX + 18, legendY + i * 18 + 10);
+    });
+  }
+
+  updateBtn.addEventListener('click', update);
+  tokensInput.addEventListener('keyup', (e) => {
+    if (e.key === 'Enter') update();
+  });
+
+  // Initial state
+  update();
+</script>

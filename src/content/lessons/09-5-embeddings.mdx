@@ -1,0 +1,165 @@
+---
+title: "How Embeddings Learn: Scatter-Add Backward"
+chapter: 9.5
+description: "Token lookup, gradient accumulation, and how embedding rows are updated during training"
+---
+
+import EmbeddingGradientFlow from '../../components/demos/ch9-5/EmbeddingGradientFlow.astro';
+
+## The Embedding Operation
+
+An **embedding** is a lookup table: given a token ID, retrieve its dense vector representation.
+
+```cpp
+// Embedding table: [vocab_size, embed_dim]
+// e.g., [10000, 128] for a 10k-word vocabulary in 128D space
+Tensor embedding_table;
+
+// Forward pass: token_id=42 → embedding_table[42, :]
+Tensor token_vector = embedding_table[token_id];  // Shape: [embed_dim]
+```
+
+**In batched form:**
+
+```cpp
+// Input: token_ids shape [batch_size, seq_len] with values in [0, vocab_size)
+// Output: embeddings shape [batch_size, seq_len, embed_dim]
+
+for (int b = 0; b < batch_size; ++b) {
+    for (int t = 0; t < seq_len; ++t) {
+        int token_id = token_ids[b, t];
+        embeddings[b, t, :] = embedding_table[token_id, :];
+    }
+}
+```
+
+## The Problem: Gradients Don't Match Input Shape
+
+During backward pass, the loss gives us a gradient w.r.t. the output:
+
+```
+grad_embeddings shape: [batch_size, seq_len, embed_dim]
+```
+
+But we need to update the embedding table:
+
+```
+grad_embedding_table shape: [vocab_size, embed_dim]
+```
+
+**These shapes don't match!** The gradient flows backward through the same forward operation, so the reverse operation must convert [batch_size, seq_len, embed_dim] → [vocab_size, embed_dim].
+
+## Scatter-Add: Gradient Accumulation
+
+The key insight: **multiple tokens in a batch might reference the same embedding row**.
+
+Example:
+```
+token_ids:   [0, 5, 0, 2, 5]  (batch of 5 tokens)
+gradients:   [g0, g5, g0', g2, g5']  (each has shape [embed_dim])
+
+We want:
+grad_table[0] = g0 + g0'  (row 0 was used twice)
+grad_table[2] = g2
+grad_table[5] = g5 + g5'  (row 5 was used twice)
+```
+
+**Scatter-add** does exactly this: accumulate gradients into the table at specified indices.
+
+```cpp
+// Forward embedding lookup
+Tensor embedding(const Tensor& token_ids) {
+    // token_ids shape: [seq_len] or [batch_size, seq_len]
+    // returns shape: [seq_len, embed_dim] or [batch_size, seq_len, embed_dim]
+}
+
+// Backward scatter-add
+void embedding_backward(const Tensor& grad_output, Tensor& grad_table, const Tensor& token_ids) {
+    // grad_output shape: [seq_len, embed_dim] (matching forward output)
+    // token_ids shape: [seq_len]
+    // grad_table shape: [vocab_size, embed_dim]
+
+    for (int t = 0; t < seq_len; ++t) {
+        int token_id = token_ids[t];
+        grad_table[token_id, :] += grad_output[t, :];  // Scatter-add
+    }
+}
+```
+
+## Why This Matters
+
+1. **Sparse gradient updates:** If you have a 100k-word vocabulary but a batch of 16 sequences × 64 tokens = only 1024 token positions, you update at most 1024 unique embedding rows. The other 99k rows get zero gradient (not updated).
+
+2. **Frequent tokens learn faster:** If "the" appears 100 times per batch, its row accumulates 100 gradient updates in a single backward pass. Rare tokens update once per occurrence.
+
+3. **This is correct and intentional:** Words that appear more often in your training data should learn faster, because you see more gradient signal.
+
+## Implementation in tensorflowccp
+
+```cpp
+class Embedding : public Operation {
+    Tensor table;  // [vocab_size, embed_dim]
+    Tensor token_ids;  // [seq_len] - stored for backward
+
+public:
+    std::vector<float> forward(const std::vector<std::vector<float>>& inputs) override {
+        // inputs[0] = flattened token_ids
+        token_ids = inputs[0];
+
+        std::vector<float> output;
+        for (int idx : token_ids.as_ints()) {
+            auto row = table.get_row(idx);
+            output.insert(output.end(), row.begin(), row.end());
+        }
+        return output;
+    }
+
+    std::vector<std::vector<float>> backward(const std::vector<float>& grad_output) override {
+        // grad_output: [seq_len * embed_dim]
+        // grad_table: [vocab_size * embed_dim]
+
+        std::vector<float> grad_table(vocab_size * embed_dim, 0.0f);
+
+        for (int t = 0; t < seq_len; ++t) {
+            int token_id = token_ids[t];
+            for (int d = 0; d < embed_dim; ++d) {
+                grad_table[token_id * embed_dim + d] += grad_output[t * embed_dim + d];
+            }
+        }
+
+        return {grad_table};
+    }
+};
+```
+
+## Practical Implications for Training
+
+**Before training:**
+- All embedding rows are random, have similar norm
+- Training convergence is stable but can be slow
+
+**After a few batches:**
+- Frequent words' embeddings have moved far from initialization
+- Rare words' embeddings are still near initialization (haven't seen many gradients)
+- This creates a **vocabulary bias**: the model knows frequent words much better
+
+**Workarounds:**
+- Use pre-trained embeddings (train on big corpus, freeze or fine-tune on task)
+- Sub-word tokenization (rare words are "known" if built from common morphemes)
+- Gradient updates proportional to frequency (weight rare tokens higher)
+
+## Interactive Gradient Flow Visualization
+
+Below, watch which embedding rows get updated as you select token sequences:
+
+<EmbeddingGradientFlow />
+
+## Key Takeaways
+
+1. **Embedding forward:** Row lookup by token ID
+2. **Embedding backward:** Scatter-add accumulation of gradients
+3. **Sparse updates:** Only rows whose tokens appear get updated
+4. **Frequency bias:** Common words learn much faster than rare words
+5. **This is intentional:** More data = more learning, less data = less learning
+
+Next lesson: How embeddings are used inside Transformer architectures.
