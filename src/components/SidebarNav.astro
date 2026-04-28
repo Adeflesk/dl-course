@@ -13,7 +13,7 @@ const lessons = await getCollection('lessons');
 const sortedLessons = lessons.sort((a, b) => a.data.chapter - b.data.chapter);
 ---
 
-<nav>
+<nav class="animate-stagger">
   {sortedLessons.map(lesson => (
     <a
       href={`/lessons/${lesson.id}`}

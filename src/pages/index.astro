@@ -20,7 +20,7 @@ lessons.sort((a, b) => a.data.chapter - b.data.chapter);
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   </head>
   <body>
-    <div class="hero">
+    <div class="hero animate-fade-in">
       <h1>Deep Learning<br />from Scratch</h1>
       <p class="subtitle">
         Tensors, autodiff, gradient descent, CNNs — built from first principles
@@ -29,7 +29,7 @@ lessons.sort((a, b) => a.data.chapter - b.data.chapter);
       <a href="/lessons/01-tensors" class="cta">Start with Tensors →</a>
     </div>
 
-    <div class="chapter-grid">
+    <div class="chapter-grid animate-stagger">
       {lessons.map(lesson => (
         <a href={`/lessons/${lesson.id}`} class="chapter-card">
           <div class="chapter-num">

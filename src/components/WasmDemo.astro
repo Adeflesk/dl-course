@@ -8,7 +8,7 @@ interface Props {
 const { title, description, demoId } = Astro.props;
 ---
 
-<div class="wasm-demo" id={demoId}>
+<div class="wasm-demo animate-on-scroll" id={demoId}>
     {title && <h3 class="demo-title">{title}</h3>}
     {description && <p class="demo-description">{description}</p>}
 

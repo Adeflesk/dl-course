@@ -50,5 +50,30 @@ const allLessons = await getCollection('lessons');
         });
       }
     </script>
+    <script>
+      // Progressive disclosure animations
+      document.addEventListener('DOMContentLoaded', () => {
+        const observerOptions = {
+          threshold: 0.1,
+          rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('animate');
+            }
+          });
+        }, observerOptions);
+
+        // Observe elements with animate-on-scroll class
+        document.querySelectorAll('.animate-on-scroll').forEach(el => {
+          observer.observe(el);
+        });
+
+        // Auto-animate elements with animate-fade-in or animate-slide-in-left
+        // These use CSS animations and don't need JS triggering
+      });
+    </script>
   </body>
 </html>

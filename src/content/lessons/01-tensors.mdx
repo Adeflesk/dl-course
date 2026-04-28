@@ -41,9 +41,11 @@ Leaf tensors (weights, inputs) have `backOp == nullptr`. Every operation creates
 
 ## Interactive Tensor Demonstration
 
+<div class="animate-fade-in">
 Try creating and reshaping tensors to understand memory layout:
 
 <TensorVisualizer />
+</div>
 
 ## Creating Tensors in C++
 
@@ -60,6 +62,7 @@ int total_size = t.size();     // Total elements: 12`}
 
 ## Tensor API Reference
 
+<div class="animate-slide-in-left">
 <APIReference name="Tensor Constructor">
 
 **Constructor:**
@@ -85,6 +88,7 @@ Tensor t({2, 3, 4});  // 2×3×4 tensor
 - `std::vector<float> data` — Direct access to underlying data
 
 </APIReference>
+</div>
 
 ## Element-wise operations and broadcasting
 
