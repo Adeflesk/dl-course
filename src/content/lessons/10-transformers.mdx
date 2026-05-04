@@ -69,11 +69,11 @@ This is the **pre-norm** architecture:
 ```
 x_norm = LayerNorm(x)
 attn_out = MultiHeadAttention(x_norm, x_norm, x_norm)
-x = x + attn_out  // residual
+x = x + Dropout(attn_out)  // residual
 
 x_norm = LayerNorm(x)
 ffn_out = Linear(ReLU(Linear(x_norm)))
-x = x + ffn_out   // residual
+x = x + Dropout(ffn_out)   // residual
 ```
 
 Residual connections help gradients flow and preserve information.
@@ -108,6 +108,18 @@ Key parameters:
 - `num_heads`: parallel attention heads (4)
 - `num_layers`: stacked transformer blocks (1 or 2)
 - `max_seq_len`: max sequence length (64 or 128)
+
+## KV Caching (Stateful Generation)
+
+During inference, generating text token-by-token using $O(N^2)$ attention is incredibly slow. As the context grows, the model re-computes the projections and attention for the entire sequence just to predict one new token.
+
+**KV Caching** solves this by turning generation into an $O(1)$ operation per token:
+1. When a new token arrives, the model only projects $Q$, $K$, and $V$ for that **single token**.
+2. It appends the new $K$ and $V$ vectors to a persistent **cache** stored inside `MultiHeadAttention`.
+3. It computes attention using the single new $Q$ row against the **entire cached history** of $K$.
+4. Because $Q$ is only 1 row, there are no future tokens to attend to, so **causal masking is dynamically bypassed**.
+
+In `tensorflowccp`, `model->set_cache(true)` enables this stateful generation, allowing our macOS `GptApp` to stream text seamlessly.
 
 ## C++ Attention Implementation
 
@@ -207,12 +219,12 @@ TransformerBlock(int embed_dim, int num_heads, int num_layers);
 ```
 x_norm = LayerNorm(x)
 attn_out = MultiHeadAttention(x_norm)
-x = x + attn_out  // residual
+x = x + Dropout(attn_out)  // residual
 
 x_norm = LayerNorm(x)
 ffn_hidden = ReLU(Linear(x_norm, embed_dim → 4*embed_dim))
 ffn_out = Linear(ffn_hidden, 4*embed_dim → embed_dim)
-x = x + ffn_out   // residual
+x = x + Dropout(ffn_out)   // residual
 ```
 
 </APIReference>
@@ -270,9 +282,6 @@ Stack attention + feedforward layers with residuals and layer norm:
 2. Feedforward MLP
 3. Layer normalization and residual connections
 
-## Implementation Note
-
-Full Transformer implementation and attention visualizer coming in Phase 2 (pending nn::MultiHeadAttention module in tensorflowccp).
 
 ## Summary
 
