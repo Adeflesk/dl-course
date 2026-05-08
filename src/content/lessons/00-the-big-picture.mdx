@@ -1,0 +1,50 @@
+---
+title: "The Big Picture"
+chapter: 0
+description: "Bridging the gap between high-level AI concepts and low-level C++ implementation."
+---
+
+If you've studied Artificial Intelligence from a high-level conceptual perspective—such as the Open University's *T396: Artificial Intelligence for Technology* module—you are likely familiar with the theoretical side of Neural Networks: nodes, directed edges, weights, biases, error surfaces, and learning from data. 
+
+However, in this course, we are taking a radically different approach: **bottom-up**. Before we build a single neural network or discuss AI architectures, we are going to build the raw computational machinery that makes modern deep learning possible.
+
+## Why start at the bottom?
+
+In many high-level courses or when using modern Python libraries, you might write code like this:
+
+```python
+model = Sequential([
+    Dense(128, activation='relu'),
+    Dense(10, activation='softmax')
+])
+model.fit(X_train, y_train)
+```
+
+This abstraction is incredibly powerful, but it hides the "magic." What is a `Dense` layer actually doing in the computer's memory? How does the network automatically calculate the complex calculus (gradients) required to update millions of weights? 
+
+To deeply understand deep learning, we are going to build our own miniature version of PyTorch or TensorFlow in C++ from absolute scratch. 
+
+## The Roadmap
+
+Here is the blueprint of how we will bridge the gap from raw computer memory to a trained Artificial Intelligence:
+
+### 1. The Data Structure: Tensors (Chapter 1)
+At the highest level, a network processes inputs (like an image). In a computer, that image is just a sequence of numbers in memory. A **Tensor** is the fundamental data structure that holds these numbers. We will learn how to represent multi-dimensional conceptual arrays (matrices, image batches) inside a flat, 1-dimensional block of RAM.
+
+### 2. The Engine: Automatic Differentiation (Chapter 2 & 3)
+Neural networks learn by adjusting their weights to minimize an error. This requires computing partial derivatives. Instead of calculating these mathematically by hand, we will build a computational graph and an **Autodiff** engine that automatically tracks operations and computes gradients backward through the network.
+
+### 3. The Building Blocks: Layers & Activations (Chapter 4 & 5)
+With Tensors and Autodiff in place, we can finally construct the concepts you are familiar with from high-level AI: **Linear layers** (the edges/weights in a network graph) and **Activation functions** (the non-linear mathematical operations inside the nodes).
+
+### 4. Advanced Architectures (Chapter 6 & 7)
+We will expand our toolkit with **Convolutional Neural Networks (CNNs)** for spatial data, along with modern architectural techniques like **Batch Normalization** and **Dropout** to make our networks stable and robust.
+
+### 5. The Capstone: Recognizing Digits (Chapter 8)
+Finally, we will put the entire framework together to build, train, and test a complete network that can recognize handwritten digits (the MNIST dataset) entirely from scratch.
+
+## From Concepts to Code
+
+If you are used to thinking of neural networks visually as circles connected by lines, it's time to shift your perspective. In modern deep learning, those circles and lines are represented as **matrix multiplications** operating on **multi-dimensional arrays**. 
+
+To begin this journey, we must dive into the absolute lowest level—how we efficiently store and manipulate those multi-dimensional arrays in C++ memory. 
