@@ -1,0 +1,87 @@
+---
+title: "Loss Functions"
+chapter: 3.2
+description: "How we measure error: MSE, Binary Cross-Entropy, and Categorical Cross-Entropy"
+---
+
+import CodeSnippet from '../../components/CodeSnippet.astro';
+
+In Chapter 3, we saw how Gradient Descent minimizes a loss surface. But what exactly is that surface? How do we mathematically define "how wrong" a neural network is? That is the job of the **Loss Function** (or Criterion).
+
+A loss function takes the network's predictions and the true labels, and outputs a single scalar value representing the overall error. The backward pass then calculates the derivative of this scalar with respect to every parameter in the network, giving the optimizer its compass direction.
+
+## Mean Squared Error (MSE)
+
+For **regression tasks** (predicting continuous values like house prices or temperatures), we use Mean Squared Error. 
+
+$$ \text{MSE} = \frac{1}{N} \sum_{i=1}^N (\hat{y}_i - y_i)^2 $$
+
+Where $\hat{y}_i$ is the prediction and $y_i$ is the true value.
+
+**The Derivative:**
+To start backpropagation, we need the gradient of the loss with respect to the network's output $\hat{y}$:
+
+$$ \frac{\partial \text{MSE}}{\partial \hat{y}_i} = \frac{2}{N} (\hat{y}_i - y_i) $$
+
+This gradient simply points in the direction of the true value, scaled by the distance to it. If the prediction is too high, the gradient is positive (telling the network to decrease its output via gradient descent). 
+
+## Binary Cross-Entropy (BCE)
+
+For **binary classification** (predicting yes/no, cat/dog), we use BCE. The network outputs a single probability between 0 and 1 (usually via a Sigmoid activation). 
+
+$$ \text{BCE} = -\frac{1}{N} \sum_{i=1}^N \left[ y_i \log(\hat{y}_i) + (1 - y_i) \log(1 - \hat{y}_i) \right] $$
+
+**Why not MSE for classification?**
+MSE assumes the error scales linearly. But probabilities don't work that way. If the true label is 1, and the network predicts 0.0001, it is confidently wrong. The $\log$ in Cross-Entropy penalizes confident wrong answers exponentially, creating a much steeper gradient that forces the network to correct itself faster. If you use MSE for probabilities, the gradients tend to vanish when the network makes confident mistakes.
+
+## Categorical Cross-Entropy
+
+For **multi-class classification** (like identifying digits 0-9 in the MNIST dataset), we generalize BCE to multiple classes. The network outputs a vector of probabilities (usually via a Softmax activation).
+
+$$ \text{CE} = -\sum_{c=1}^C y_c \log(\hat{y}_c) $$
+
+Where $y$ is a one-hot encoded vector (e.g., `[0, 0, 1, 0, 0]` for class 2) and $\hat{y}$ is the predicted probability distribution. Because $y_c$ is 0 for all incorrect classes, this simplifies to just the negative log of the probability assigned to the *correct* class.
+
+**The Derivative:**
+When combined with a Softmax activation, the derivative of Categorical Cross-Entropy is remarkably elegant:
+
+$$ \frac{\partial L}{\partial z_i} = \hat{y}_i - y_i $$
+
+Where $z_i$ are the raw pre-softmax outputs (logits). 
+- For the correct class ($y_i = 1$), the gradient is $\hat{y}_i - 1$. This is a negative number, so gradient descent will push the logit *up*.
+- For the incorrect classes ($y_i = 0$), the gradient is $\hat{y}_i - 0$. This is a positive number, so gradient descent will push the logit *down*.
+
+The gradient is directly proportional to the network's confidence. If the network assigned 80% probability to the wrong class, it receives a strong gradient of $0.8$ pushing it down.
+
+## Implementing a Criterion in C++
+
+In `tensorflowccp`, loss functions inherit from a base `Module` that handles the forward computation and stores the inputs necessary for the backward pass.
+
+Here is how MSE is implemented:
+
+<CodeSnippet 
+    title="MSE Loss Implementation"
+    code={`class MSELoss : public Module {
+    Tensor preds_copy;
+    Tensor targets_copy;
+    
+public:
+    Tensor forward(const Tensor& preds, const Tensor& targets) {
+        preds_copy = preds;      // Store for backward pass
+        targets_copy = targets;  // Store for backward pass
+        
+        // Compute scalar loss
+        Tensor diff = preds - targets;
+        Tensor sq_diff = diff * diff;
+        return sum(sq_diff) / preds.size();
+    }
+    
+    Tensor backward() {
+        // Return dL/dPreds to kick off backpropagation
+        return (preds_copy - targets_copy) * (2.0f / preds_copy.size());
+    }
+};`}
+    highlight={[17]}
+/>
+
+The resulting tensor returned from `backward()` is the initial `grad_z` that is fed into the last layer of the network to begin the chain rule propagation all the way back to the first layer!
