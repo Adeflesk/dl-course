@@ -1,0 +1,157 @@
+---
+title: "The Framework Architecture"
+chapter: 12
+description: "How to navigate the tensorflowccp codebase and build your own C++ deep learning projects"
+---
+
+import CodeSnippet from '../../components/CodeSnippet.astro';
+
+Over the previous chapters, we have explored the mathematical foundations of deep learning and looked at isolated C++ snippets demonstrating how autodiff, convolutions, and attention work. 
+
+In this final chapter, we step back from the math and look at **software engineering**. If you want to use the `tensorflowccp` repository to build your own C++ machine learning project, how do you actually do it?
+
+## The Codebase Anatomy
+
+The `tensorflowccp` framework is structurally inspired by PyTorch but written entirely in C++ from scratch. If you open the repository, you will see a clear separation of concerns:
+
+- **`tensor.h` / `tensor.cpp`**: The core data structure. Handles multidimensional arrays, flat memory storage, broadcasting, and the `backward()` topological sort engine.
+- **`ops/`**: The low-level mathematical operations (Add, Matmul, Conv2D, ReLU). These classes inherit from `Operation` and define both a `forward()` rule and a mathematical `backward()` derivative rule. 
+- **`nn/`**: High-level abstractions. Classes here (like `Linear`, `Conv2d`, `Sequential`) inherit from `Module`. They contain learnable weights and wrap the raw `ops` into usable layers.
+- **`optim/`**: Optimization algorithms like `SGD` and `Adam`. These classes take a list of parameters (pointers to Tensors) and update them based on their `.grad` fields.
+
+## The "Holy Trinity" of the API
+
+To build a project, you orchestrate three main components: **Modules**, **Optimizers**, and **Loss Functions**.
+
+### 1. Defining a Model (Modules)
+You construct networks by combining `nn::Module` instances, typically wrapped in an `nn::Sequential` container.
+
+```cpp
+#include "nn/Sequential.h"
+#include "nn/Linear.h"
+#include "nn/ReLU.h"
+
+// A simple 2-layer multi-layer perceptron (MLP)
+nn::Sequential model({
+    std::make_shared<nn::Linear>(2, 16),
+    std::make_shared<nn::ReLU>(),
+    std::make_shared<nn::Linear>(16, 1)
+});
+```
+
+### 2. The Optimizer
+The optimizer needs to know *what* to optimize. You pass it the model's parameters (which are automatically aggregated from all sub-modules).
+
+```cpp
+#include "optim/Adam.h"
+
+// Initialize Adam with learning rate 0.01
+optim::Adam optimizer(model.parameters(), 0.01f);
+```
+
+### 3. The Loss Function
+The loss function measures error and kicks off backpropagation.
+
+```cpp
+#include "nn/MSELoss.h"
+
+nn::MSELoss criterion;
+```
+
+## A Complete `main.cpp` Project
+
+Here is a complete, compilable `main.cpp` that trains a neural network to solve the classic XOR problem. Notice how elegantly the C++ code reads—it is intentionally designed to mirror the high-level Python API of PyTorch.
+
+<CodeSnippet 
+    title="Training XOR in C++"
+    code={`#include <iostream>
+#include <vector>
+#include "tensor.h"
+#include "nn/Sequential.h"
+#include "nn/Linear.h"
+#include "nn/Tanh.h"
+#include "nn/MSELoss.h"
+#include "optim/Adam.h"
+
+int main() {
+    // 1. Dataset (XOR)
+    Tensor X({4, 2}, {0,0, 0,1, 1,0, 1,1});
+    Tensor Y({4, 1}, {0,   1,   1,   0  });
+
+    // 2. Model Architecture
+    nn::Sequential model({
+        std::make_shared<nn::Linear>(2, 8),
+        std::make_shared<nn::Tanh>(),
+        std::make_shared<nn::Linear>(8, 1)
+    });
+
+    // 3. Loss and Optimizer
+    nn::MSELoss criterion;
+    optim::Adam optimizer(model.parameters(), 0.01f);
+
+    // 4. Training Loop
+    int epochs = 1000;
+    for (int epoch = 0; epoch < epochs; ++epoch) {
+        // Step A: Clear previous gradients
+        optimizer.zero_grad();
+
+        // Step B: Forward pass
+        Tensor predictions = model.forward(X);
+        Tensor loss = criterion.forward(predictions, Y);
+
+        // Step C: Backward pass (compute gradients)
+        loss.backward();
+
+        // Step D: Update weights
+        optimizer.step();
+
+        if (epoch % 200 == 0) {
+            std::cout << "Epoch " << epoch << " | Loss: " << loss.data[0] << std::endl;
+        }
+    }
+
+    // 5. Evaluation
+    std::cout << "\\nFinal Predictions:" << std::endl;
+    Tensor final_preds = model.forward(X);
+    for(int i=0; i<4; ++i) {
+        std::cout << X.data[i*2] << " XOR " << X.data[i*2+1] 
+                  << " = " << final_preds.data[i] << std::endl;
+    }
+
+    return 0;
+}`}
+    highlight={[31, 34, 38, 41]}
+/>
+
+## A Note on Memory & Pointers
+
+In Chapter 4, we briefly mentioned that C++ requires careful memory management, whereas Python uses reference counting. 
+
+When you write `loss.backward()`, the framework traverses a graph of `Operation` pointers. These operations hold raw pointers to your `Tensor` data. **If a Tensor goes out of scope and is destroyed before `backward()` is called, your program will crash with a segmentation fault.**
+
+This is why `nn::Module` implementations in `tensorflowccp` store internal copies of intermediate tensors during `forward()`. It guarantees the data survives long enough for the `backward()` pass to use it. As a user of the framework, as long as you rely on the provided `nn::Module` classes (like `Linear` and `Conv2d`), this memory management is handled safely for you.
+
+## CMake Integration
+
+To build your own executable, you simply link against the `tensorflowccp` library in your `CMakeLists.txt`:
+
+```cmake
+cmake_minimum_required(VERSION 3.10)
+project(MyDeepLearningApp)
+
+set(CMAKE_CXX_STANDARD 17)
+
+# Assuming tensorflowccp is in a subdirectory of your project
+add_subdirectory(tensorflowccp)
+
+add_executable(my_app main.cpp)
+target_link_libraries(my_app tensorflowccp)
+```
+
+## Conclusion
+
+You now have a complete understanding of how deep learning works under the hood, and a functional C++ library to prove it. 
+
+Whether you want to build a tiny text generator like MiniGPT, implement a custom Reinforcement Learning algorithm, or deploy a lightweight computer vision model on a resource-constrained device, you have the tools—and the source code—to do it. 
+
+Happy coding!
