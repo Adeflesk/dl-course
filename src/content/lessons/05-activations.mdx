@@ -128,7 +128,7 @@ Before optimizer step, clip the gradient norm:
 // After loss.backward(), before optimizer.step()
 float grad_norm = 0.0f;
 for (auto param : model.parameters()) {
-    grad_norm += param->grad.norm() ** 2;
+    grad_norm += std::pow(param->grad.norm(), 2);
 }
 grad_norm = std::sqrt(grad_norm);
 

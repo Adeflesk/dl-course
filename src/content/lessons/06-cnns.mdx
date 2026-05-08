@@ -64,7 +64,7 @@ This is why max-pooling works well with ReLU: positions that weren't the maximum
 
 ### Conv2d backward
 
-The backward pass of a convolution is itself a convolution — specifically, the input gradient is computed by convolving the output gradient with the kernel **flipped 180°** (rotating both spatial dimensions). The kernel gradient is computed by convolving the *input* with the output gradient. This elegant symmetry means the same inner-loop logic used in the forward pass can be reused in the backward pass with different index arithmetic.
+The backward pass of a convolution is itself a convolution — specifically, the input gradient is computed by convolving the output gradient with the kernel **flipped 180°** (rotating both spatial dimensions). The kernel gradient is computed by convolving the *input* with the output gradient. This elegant symmetry means the same inner-loop logic used in the forward pass can be reused in the backward pass. *(Note: This process corresponds to what is often called a transposed convolution in deep learning literature).*
 
 ## Hierarchical features
 

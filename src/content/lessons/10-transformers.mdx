@@ -44,14 +44,11 @@ Each head sees a subspace of the embedding (split $d_{model}$ dimensions into $h
 
 ## Causal Masking
 
-During decoding, when generating token $t$, you can't look at future tokens $t+1, t+2, \ldots$. You mask them:
+During decoding, when generating token $t$, you can't look at future tokens $t+1, t+2, \ldots$. You must mask them. 
 
-$$\text{Attention}(Q, K, V)_{ij} = \begin{cases}
-\text{softmax}_j(QK^T / \sqrt{d_k})_j & \text{if } j \le i \\
--\infty & \text{if } j > i
-\end{cases}$$
+After computing the pre-softmax attention scores ($QK^T / \sqrt{d_k}$), entries at positions $j > i$ (future tokens) are manually set to $-\infty$. 
 
-The $-\infty$ entries become 0 after softmax, zeroing out future tokens.
+When the softmax is applied, those $-\infty$ entries become $0$, completely zeroing out the network's ability to "attend" to future tokens.
 
 ## Transformer Decoder Block
 
@@ -226,6 +223,8 @@ ffn_hidden = ReLU(Linear(x_norm, embed_dim → 4*embed_dim))
 ffn_out = Linear(ffn_hidden, 4*embed_dim → embed_dim)
 x = x + Dropout(ffn_out)   // residual
 ```
+
+*(Note: The $4\times$ expansion factor for the hidden layer is a standard convention established in the original "Attention Is All You Need" paper, rather than a mathematically derived requirement.)*
 
 </APIReference>
 

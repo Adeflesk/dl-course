@@ -28,7 +28,9 @@ Backpropagation through time (BPTT) unfolds the recurrence into a chain. When yo
 
 $$\frac{\partial h_T}{\partial h_0} = \prod_{t=1}^{T} \frac{\partial h_t}{\partial h_{t-1}}$$
 
-If the Jacobian eigenvalues are $< 1$, the product shrinks exponentially: $\lambda^T \to 0$ as $T$ grows. Gradients for early timesteps vanish. The network learns the recent past but forgets long-range dependencies.
+If the Jacobian eigenvalues are $< 1$, the product shrinks exponentially: $\lambda^T \to 0$ as $T$ grows. Gradients for early timesteps **vanish**, meaning the network learns the recent past but forgets long-range dependencies.
+
+Conversely, if the eigenvalues are $> 1$, the product grows exponentially. Gradients for early timesteps **explode**, causing numerical instability and NaN values. This is why we implemented **gradient clipping** in Chapter 5.
 
 Example: predicting "the cat sat on the mat" requires remembering "cat" from 4 tokens ago. RNNs fail on such dependencies.
 
