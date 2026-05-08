@@ -8,6 +8,33 @@ If you've studied Artificial Intelligence from a high-level conceptual perspecti
 
 However, in this course, we are taking a radically different approach: **bottom-up**. Before we build a single neural network or discuss AI architectures, we are going to build the raw computational machinery that makes modern deep learning possible.
 
+<div class="callout">
+**Why do we need deep learning?**<br/>
+Traditional programming requires you to write explicit rules (e.g., `if pixel > 128 then...`). This fails completely for complex tasks like image recognition, speech translation, and pattern extraction. Deep learning solves this by writing a differentiable program and letting the data *learn* the rules.
+</div>
+
+<div class="callout" style="border-left-color: #555; background: #111;">
+**Course Prerequisites:**
+- **C++:** Basic to intermediate knowledge (pointers, vectors, classes).
+- **Math:** High-school algebra and a conceptual understanding of derivatives (slope/rate of change).
+- **Experience:** You do *not* need prior PyTorch, TensorFlow, or machine learning experience. We build it all from scratch.
+</div>
+
+## The Learning Cycle
+
+Before we look at the C++ implementation, you must understand the sequence of events that makes a network learn. Every modern neural network operates on this exact loop:
+
+<div style="background: var(--code-bg); padding: 1.5rem; border-radius: 4px; border: 1px solid var(--bg-border); font-family: var(--font-mono); font-size: 0.85rem; margin: 1.5rem 0; text-align: center; color: var(--text); line-height: 2;">
+  <strong>DATA</strong> <span style="color: var(--text-dim);">→</span> 
+  <strong>MODEL</strong> <span style="color: var(--text-dim);">→</span> 
+  <strong>PREDICTION</strong> <span style="color: var(--text-dim);">→</span> 
+  <strong>LOSS FUNCTION</strong> <br/>
+  <span style="display: block; margin-top: 0.2rem; color: var(--accent);">↑ update weights</span>
+  <strong>LEARNING</strong> <span style="color: var(--text-dim);">←</span> 
+  <strong>OPTIMIZATION</strong> <span style="color: var(--text-dim);">←</span> 
+  <strong>BACKPROPAGATION</strong>
+</div>
+
 ## Why start at the bottom?
 
 In many high-level courses or when using modern Python libraries, you might write code like this:
@@ -24,7 +51,7 @@ This abstraction is incredibly powerful, but it hides the "magic." What is a `De
 
 To deeply understand deep learning, we are going to build our own miniature version of PyTorch or TensorFlow in C++ from absolute scratch. 
 
-## The Roadmap
+## The Curriculum Roadmap
 
 Here is the blueprint of how we will bridge the gap from raw computer memory to a trained Artificial Intelligence:
 

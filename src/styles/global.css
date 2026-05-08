@@ -27,7 +27,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-sans);
-  line-height: 1.7;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -43,7 +43,7 @@ h1 { font-size: 2.25rem; font-weight: 700; margin-bottom: 1.5rem; letter-spacing
 h2 { font-size: 1.5rem; font-weight: 600; border-bottom: 1px solid var(--bg-border); padding-bottom: 0.5rem; margin-top: 2.5rem; letter-spacing: -0.01em; }
 h3 { font-size: 1.25rem; font-weight: 600; margin-top: 2rem; }
 
-p { margin-bottom: 1.2rem; }
+p { margin-bottom: 1rem; }
 
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
@@ -53,12 +53,12 @@ pre {
   background: var(--code-bg) !important;
   border: 1px solid var(--bg-border);
   border-radius: 4px;
-  padding: 1rem 1.25rem;
+  padding: 0.85rem 1rem;
   overflow-x: auto;
   font-family: var(--font-mono);
   font-size: 0.85rem;
-  line-height: 1.6;
-  margin: 1.5rem 0;
+  line-height: 1.5;
+  margin: 1.2rem 0;
 }
 
 code {
@@ -82,9 +82,10 @@ pre code {
   border-left: 3px solid var(--accent);
   background: var(--bg-subtle);
   padding: 0.75rem 1rem;
-  margin: 1.5rem 0;
+  margin: 1.2rem 0;
   color: var(--text);
   font-size: 0.95rem;
+  line-height: 1.5;
 }
 
 /* ── Canvas diagrams ────────────────────────────────────── */
