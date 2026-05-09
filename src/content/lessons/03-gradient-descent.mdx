@@ -32,13 +32,19 @@ Try switching between SGD and Adam on different problems. Notice how:
 - **Rosenbrock**: Adam escapes the flat valley better than vanilla SGD
 - **Spiral**: Adam handles multi-modal landscapes more gracefully
 
+*Why does Adam win the race?* Think of the loss landscape as a physical hill. SGD is like a tiny marble—it gets stuck in every little crack and bounces wildly down steep ravines. Adam uses "momentum" (like friction and mass). It acts like a heavy iron ball rolling down the hill; it builds up speed in consistent directions and plows right through the noisy bumps to find the actual valley floor.
+
 ## Stochastic Gradient Descent
 
 $$w \leftarrow w - \eta \cdot \nabla_w L$$
 
-where $\eta$ is the **learning rate** — how big a step to take. Too large: overshoot the valley, loss oscillates or diverges. Too small: training is slow.
+where $\eta$ is the **learning rate** — how big a step to take. This is the ultimate "Goldilocks" parameter:
+- **Too small:** training is painfully slow.
+- **Too large (Divergence):** the weights overshoot the valley and bounce up the opposite wall even higher. The gradients grow exponentially with each step until the numbers overflow the C++ `float` limit, and your weights turn into `NaN` (Not a Number). If your engine suddenly prints `loss: NaN`, your learning rate is too high.
 
 In practice, you compute the gradient on a **mini-batch** (a random subset of training examples) rather than the full dataset. This is the "stochastic" part — the gradient is noisy but cheap to compute.
+
+*(Historical Note: In older systems like the OU "Seabird" project, training was often "batch" mode—the network waited to see all 500 birds before making a single update. Stochastic mini-batch training means the network learns "on the fly" after every 16 or 32 examples. This makes the gradient path noisier, but allows the network to converge drastically faster.)*
 
 ```cpp
 // From src/optim/SGD.cpp
@@ -93,7 +99,7 @@ Adam (Adaptive Moment Estimation) maintains running estimates of the first momen
 $$m_t = \beta_1 m_{t-1} + (1 - \beta_1) g_t$$
 $$v_t = \beta_2 v_{t-1} + (1 - \beta_2) g_t^2$$
 
-Then apply **bias correction** (important at the start of training when $m$ and $v$ are near zero):
+Then apply **bias correction** (important at the start of training when $m$ and $v$ are near zero). Note that $t$ is the current time step (iteration), which the Optimizer class must persist across calls to `step()`:
 
 $$\hat{m}_t = \frac{m_t}{1 - \beta_1^t}, \quad \hat{v}_t = \frac{v_t}{1 - \beta_2^t}$$
 
@@ -113,7 +119,14 @@ for (size_t i = 0; i < p->data.size(); ++i) {
     float vhat = v[pi][i] / (1 - pow(beta2, t));
     p->data[i] -= lr * mhat / (sqrt(vhat) + eps);
 }
+}
 ```
+
+<div class="callout">
+**C++ Performance: Why flat arrays instead of maps?**
+
+Notice that the Adam code uses `m[pi][i]` rather than looking up the parameter by its memory address in a `std::map<Tensor*, std::vector<float>>` inside the loop. The `step()` function runs millions of times. A map lookup ($O(\log N)$) inside the innermost nested loop will absolutely destroy your performance. Using pre-allocated flat arrays or vectors and direct index access ($O(1)$) is the correct "C++ way" to write a fast engine.
+</div>
 
 import GradientDescentDiagram from '../../diagrams/GradientDescentDiagram.astro';
 
