@@ -284,16 +284,16 @@ const { demoId = 'ch3-loss-landscape-3d' } = Astro.props;
     flex-direction: column;
     gap: 1.5rem;
     padding: 1.5rem;
-    background: #f9fafb;
-    border: 1px solid #e5e7eb;
+    background: var(--bg-subtle);
+    border: 1px solid var(--bg-subtle);
     border-radius: 8px;
     height: fit-content;
   }
 
   @media (prefers-color-scheme: dark) {
     .landscape3d-controls {
-      background: #1f2937;
-      border-color: #374151;
+      background: var(--bg-subtle);
+      border-color: var(--bg-subtle);
     }
   }
 
@@ -311,19 +311,19 @@ const { demoId = 'ch3-loss-landscape-3d' } = Astro.props;
   select,
   input[type='number'] {
     padding: 0.75rem;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--bg-subtle);
     border-radius: 6px;
     font-size: 0.95rem;
     background: white;
-    color: #1f2937;
+    color: var(--bg-subtle);
   }
 
   @media (prefers-color-scheme: dark) {
     select,
     input[type='number'] {
-      background: #374151;
-      border-color: #4b5563;
-      color: #e5e7eb;
+      background: var(--bg-subtle);
+      border-color: var(--bg-subtle);
+      color: var(--bg-subtle);
     }
   }
 
@@ -331,7 +331,7 @@ const { demoId = 'ch3-loss-landscape-3d' } = Astro.props;
     height: 6px;
     -webkit-appearance: none;
     appearance: none;
-    background: #d1d5db;
+    background: var(--bg-subtle);
     border-radius: 5px;
     outline: none;
     cursor: pointer;
@@ -342,7 +342,7 @@ const { demoId = 'ch3-loss-landscape-3d' } = Astro.props;
     appearance: none;
     width: 18px;
     height: 18px;
-    background: #2563eb;
+    background: var(--accent);
     border-radius: 50%;
     cursor: pointer;
   }
@@ -350,7 +350,7 @@ const { demoId = 'ch3-loss-landscape-3d' } = Astro.props;
   .param-slider::-moz-range-thumb {
     width: 18px;
     height: 18px;
-    background: #2563eb;
+    background: var(--accent);
     border-radius: 50%;
     cursor: pointer;
     border: none;
@@ -358,15 +358,15 @@ const { demoId = 'ch3-loss-landscape-3d' } = Astro.props;
 
   @media (prefers-color-scheme: dark) {
     .param-slider {
-      background: #4b5563;
+      background: var(--bg-subtle);
     }
 
     .param-slider::-webkit-slider-thumb {
-      background: #3b82f6;
+      background: var(--accent);
     }
 
     .param-slider::-moz-range-thumb {
-      background: #3b82f6;
+      background: var(--accent);
     }
   }
 
@@ -411,7 +411,7 @@ const { demoId = 'ch3-loss-landscape-3d' } = Astro.props;
 
   .trajectory-options {
     padding-top: 1rem;
-    border-top: 1px solid #e5e7eb;
+    border-top: 1px solid var(--bg-subtle);
     display: flex;
     flex-direction: column;
     gap: 1rem;
@@ -419,7 +419,7 @@ const { demoId = 'ch3-loss-landscape-3d' } = Astro.props;
 
   @media (prefers-color-scheme: dark) {
     .trajectory-options {
-      border-color: #374151;
+      border-color: var(--bg-subtle);
     }
   }
 
@@ -429,7 +429,7 @@ const { demoId = 'ch3-loss-landscape-3d' } = Astro.props;
 
   button {
     padding: 0.75rem 1.5rem;
-    background: #2563eb;
+    background: var(--accent);
     color: white;
     border: none;
     border-radius: 6px;
@@ -439,7 +439,7 @@ const { demoId = 'ch3-loss-landscape-3d' } = Astro.props;
   }
 
   button:hover:not(:disabled) {
-    background: #1d4ed8;
+    background: var(--accent);
   }
 
   button:disabled {
@@ -449,11 +449,11 @@ const { demoId = 'ch3-loss-landscape-3d' } = Astro.props;
 
   @media (prefers-color-scheme: dark) {
     button {
-      background: #3b82f6;
+      background: var(--accent);
     }
 
     button:hover:not(:disabled) {
-      background: #2563eb;
+      background: var(--accent);
     }
   }
 
@@ -465,8 +465,8 @@ const { demoId = 'ch3-loss-landscape-3d' } = Astro.props;
   .landscape3d-plot {
     min-height: 500px;
     padding: 2rem;
-    background: #f9fafb;
-    border: 1px solid #e5e7eb;
+    background: var(--bg-subtle);
+    border: 1px solid var(--bg-subtle);
     border-radius: 8px;
     display: flex;
     align-items: center;
@@ -476,8 +476,8 @@ const { demoId = 'ch3-loss-landscape-3d' } = Astro.props;
 
   @media (prefers-color-scheme: dark) {
     .landscape3d-plot {
-      background: #1f2937;
-      border-color: #374151;
+      background: var(--bg-subtle);
+      border-color: var(--bg-subtle);
       color: #aaa;
     }
   }

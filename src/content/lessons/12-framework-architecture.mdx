@@ -148,10 +148,16 @@ add_executable(my_app main.cpp)
 target_link_libraries(my_app tensorflowccp)
 ```
 
+## The "Manual vs. Auto" Bridge
+
+While you now know exactly how to build a deep learning framework from absolute zero, the reality of modern Software Engineering is that you will almost certainly use PyTorch, TensorFlow, or JAX in your day job. The true value of this course is *not* to replace those industrial tools. The value is that when those tools crash with an obscure shape mismatch, a vanishing gradient, or a CUDA OutOfMemory exception, you won't be staring at a black box. You will be the engineer who actually knows how to fix them, because you know exactly how the engine is built.
+
 ## Conclusion
 
 You now have a complete understanding of how deep learning works under the hood, and a functional C++ library to prove it. 
 
 Whether you want to build a tiny text generator like MiniGPT, implement a custom Reinforcement Learning algorithm, or deploy a lightweight computer vision model on a resource-constrained device, you have the tools—and the source code—to do it. 
+
+*A final Easter Egg:* This entire C++ framework, and this course, was ultimately born from a 20-year-old desire to "unmask" the magic of the Open University T396 Seabird Simulator. We didn't just learn to click buttons in a GUI; we built the machinery of thought itself.
 
 Happy coding!

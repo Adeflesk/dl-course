@@ -41,7 +41,7 @@ const clientId = Math.random().toString(36).substring(7);
     border: 1px solid #ccc;
     padding: 1.5rem;
     border-radius: 8px;
-    background: #f9f9f9;
+    background: var(--bg-subtle);
   }
 
   .controls {
@@ -71,8 +71,8 @@ const clientId = Math.random().toString(36).substring(7);
   }
 
   .op-button:hover {
-    background: #e8f0ff;
-    border-color: #007acc;
+    background: var(--bg-subtle);
+    border-color: var(--accent);
   }
 
   .action-button:hover {
@@ -81,7 +81,7 @@ const clientId = Math.random().toString(36).substring(7);
   }
 
   .trace-button {
-    background: #007acc;
+    background: var(--accent);
     color: white;
     border: none;
     font-weight: bold;
@@ -89,7 +89,7 @@ const clientId = Math.random().toString(36).substring(7);
   }
 
   .trace-button:hover:not(:disabled) {
-    background: #005a9e;
+    background: var(--accent);
   }
 
   .trace-button:disabled {
@@ -101,7 +101,7 @@ const clientId = Math.random().toString(36).substring(7);
     background: white;
     padding: 0.75rem;
     border-radius: 4px;
-    border-left: 3px solid #007acc;
+    border-left: 3px solid var(--accent);
     font-size: 0.9rem;
     font-family: monospace;
     line-height: 1.4;
@@ -112,7 +112,7 @@ const clientId = Math.random().toString(36).substring(7);
   }
 
   .code {
-    background: #f0f0f0;
+    background: var(--bg-subtle);
     padding: 0.25rem 0.5rem;
     border-radius: 2px;
   }
@@ -318,8 +318,8 @@ const clientId = Math.random().toString(36).substring(7);
       const radius = 25;
 
       // Node circle
-      ctx.fillStyle = node.type === 'input' ? '#e8f5e9' :
-                     (isOutput ? '#fff3e0' : '#f3e5f5');
+      ctx.fillStyle = node.type === 'input' ? 'var(--bg-subtle)' :
+                     (isOutput ? 'var(--bg-subtle)' : 'var(--bg-subtle)');
       ctx.strokeStyle = node.type === 'input' ? '#4caf50' :
                        (isOutput ? '#ff9800' : '#9c27b0');
       ctx.lineWidth = isOutput ? 3 : 2;
