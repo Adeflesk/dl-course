@@ -18,11 +18,21 @@ Before diving into automatic differentiation, let's build intuition about what d
 
 <DerivativeVisualizer demoId="ch2-derivative-viz" />
 
+*(Note: If you play with a Sigmoid curve, you'll see its maximum slope is just `0.25`. As we'll see in [Lesson 5 (Activations)](/lessons/05-activations), multiplying this tiny slope backward through many layers causes gradients to vanish, explaining why early AI systems failed to build truly "Deep" networks.)*
+
 ## The computation graph
 
 Every time you write `z = x * w + b`, you're building a graph. Each operation (`*`, `+`) creates a new node that records which tensors it consumed. When you call `loss.backward()`, the framework walks this graph in reverse, propagating gradients from the loss back to the leaves.
 
 In tensorflowccp, every `Tensor` carries a `backOp` pointer — the operation that produced it. Leaf tensors (weights, inputs) have `backOp == nullptr`. Intermediate tensors point back at their creating operation.
+
+<div class="callout">
+**Memory Management: The "Ghost" Tensors**
+
+In Python, memory is garbage-collected. In C++, building a dynamic DAG creates a massive memory lifecycle challenge. Who owns the intermediate tensors? 
+
+In `tensorflowccp`, operations hold `std::shared_ptr<Tensor>` inputs. The `backOp` (which is a `std::shared_ptr<Operation>`) keeps the parent tensors alive strictly for the backward pass. Once `loss.backward()` finishes and the graph falls out of scope, the reference counts drop to zero, and the entire computation graph cleanly self-destructs without memory leaks.
+</div>
 
 ```cpp
 // Forward pass — implicitly builds the graph
@@ -45,6 +55,8 @@ In a computation graph, each operation only needs to know its **local gradient**
 For multiplication $z = x \cdot w$:
 - $\frac{\partial z}{\partial x} = w$, so $\text{grad}\_x = \text{grad}\_z \cdot w$
 - $\frac{\partial z}{\partial w} = x$, so $\text{grad}\_w = \text{grad}\_z \cdot x$
+
+*But what if $x$ and $w$ are matrices?* The "local Jacobian" isn't just a number; it's a higher-order tensor. The beautiful symmetry of linear algebra is that the backward pass of a matrix multiplication is simply *another matrix multiplication using the transposed weights*: $\text{grad}\_x = \text{grad}\_z \times w^T$. We will explore this fully in [Lesson 4 (Linear Layers)](/lessons/04-linear-layers).
 
 ## Interactive: Watch Gradients Flow Backward
 
@@ -85,6 +97,8 @@ for (int i = (int)topo.size() - 1; i >= 0; --i)
         topo[i]->backOp->backward(topo[i]->grad);
 ```
 
+*(Technical tip: Our DFS `build` function uses recursion because it is clean and elegant. However, for extremely deep networks like a 100-layer ResNet, a recursive DFS can trigger a C++ stack overflow. In production-grade frameworks, this topological sort is implemented using an iterative DFS with a manual stack!)*
+
 import AutodiffDiagram from '../../diagrams/AutodiffDiagram.astro';
 
 <AutodiffDiagram />
@@ -102,6 +116,14 @@ void backward(const std::vector<float>& grad_z) override {
     t2->accumulate_grad(elementwise_mul(grad_z, t1->data));
 }
 ```
+
+<div class="callout">
+**The Golden Rule: You Must `zero_grad()`!**
+
+Because we use `accumulate_grad()` (adding to existing gradients rather than overwriting them), the gradients persist after the backward pass. If you start a new training step without calling `zero_grad()` to wipe them out, the new gradients will be added to the old ones. 
+
+Your gradients will rapidly explode toward infinity, and your network will destroy itself in seconds. While older GUI simulators (like NeuralWorks) handled this for you behind the scenes, manually zeroing gradients is a classic "rite of passage" for every AI engineer writing code from scratch.
+</div>
 
 ## Broadcasting and gradient collapse
 
