@@ -11,19 +11,14 @@ import UnlockManager from '../../components/demos/shared/UnlockManager.astro';
 
 Chapters 1–10 built the foundations of deep learning: tensors, differentiation, optimization, supervised learning, convolutional networks, and transformers. This final chapter pulls everything together into **MiniGPT**, a small generative pre-trained transformer.
 
-**What is GPT?** Generative Pre-trained Transformer. The model:
-- **Generates** text by predicting the next character
-- Is **pre-trained** on unlabeled text (self-supervised)
-- Uses the **Transformer** architecture we built in Chapter 10
+This is the ultimate assembly. We are taking:
+1. **Embeddings** (Lesson 09.5)
+2. **Positional Encodings** (Lesson 10)
+3. **Multi-Head Attention** (Lesson 10)
+4. **Linear Layers & LayerNorm**
+5. **Softmax & Cross-Entropy** (Lesson 08)
 
-You've already seen the pieces:
-- **Chapter 2**: Backpropagation computes gradients for the embedding and attention layers
-- **Chapter 3**: Adam optimizer trains the model
-- **Chapter 5**: Batch processing and loss functions (cross-entropy)
-- **Chapter 9.5**: Embedding layers map tokens to vectors
-- **Chapter 10**: Transformer blocks with multi-head attention
-
-MiniGPT assembles these into a complete generative model.
+And building a character-level model that can actually generate text. This is a massive jump from the rule-based "Flex" systems of the past—it is a system that learns the structure of language itself through pure mathematical optimization.
 
 ## Architecture
 
@@ -53,6 +48,8 @@ Input tokens
      ↓
 [Softmax] → next character probabilities
 ```
+
+*(Engineer's Note: Our C++ engine handles `LayerNorm` similarly to `BatchNorm`, but crucially it normalizes across the *features* (the embedding dimension) rather than across the batch. This prevents internal covariance shifts within the individual token representations and acts as the final "stabilizer" you'll need for the Transformer to safely converge!)*
 
 ## Training: Teacher Forcing
 

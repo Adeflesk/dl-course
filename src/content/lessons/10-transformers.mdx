@@ -15,6 +15,8 @@ LSTMs solve vanishing gradients, but they have a bottleneck: **all sequence info
 
 Example: predicting the verb in "The bank officials from several countries convened to discuss the financial crisis and..." requires information from 20+ tokens back. The hidden state must compress all that information.
 
+**The Solution:** Attention allows every token to "look" at every other token simultaneously. If the network is processing the word "it" in the sentence *"The bird landed on the branch because it was tired"*, Attention allows the word "it" to place a massive mathematical weight directly on the word "bird", bypassing the bottleneck entirely.
+
 ## Scaled Dot-Product Attention
 
 **Attention** lets each token directly look at every other token. Instead of compressing information into a vector, we compute **relevance scores** between all pairs of positions.
@@ -24,27 +26,33 @@ Given a query token, key tokens, and value tokens:
 $$\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V$$
 
 **Intuition:**
-- **Query** ($Q$): "What am I looking for?" — the current token
-- **Key** ($K$): "What can you offer?" — features of all tokens
-- **Value** ($V$): "Here's my information" — the actual content of all tokens
+- **Query** ($Q$): "What am I looking for?" — the current token's needs.
+- **Key** ($K$): "What do I contain?" — features of all available tokens.
+- **Value** ($V$): "What information do I give if I'm a match?" — the actual content transferred.
 
 The softmax scores which keys are relevant to the query. Then we take a weighted average of the values.
 
-**Example:** If a token queries "Give me subject information", the keys for "cat" and "dog" have high similarity, so their values contribute more to the output. The mechanism automatically learns what to attend to.
+<div class="callout">
+**Engineer's Note: The Memory Explosion**
+
+Look closely at $QK^T$. This creates a square matrix of size `[Seq_Len, Seq_Len]`. If your sequence is 1024 tokens long, this is a million-element matrix. If it's 8000 tokens, it's a 64-million element matrix. This quadratic memory scaling is exactly why Transformers are so incredibly memory-intensive compared to RNNs!
+</div>
 
 ## Multi-Head Attention
 
-One attention head may focus on short-range dependencies, another on long-range. Multi-head attention learns multiple attention patterns in parallel:
+One attention head may focus on short-range dependencies, another on long-range. Multi-head attention learns multiple attention patterns in parallel by performing the attention math $h$ times simultaneously.
+
+**The Expert Analogy:** It’s like having 8 different linguistic experts looking at the same sentence. One expert looks exclusively for grammar, another for subject-verb agreement, and another for factual relationships.
 
 $$\text{MultiHead}(Q, K, V) = \text{Concat}(h_1, \ldots, h_h) W^O$$
 
 where $h_i = \text{Attention}(Q W_i^Q, K W_i^K, V W_i^V)$ for $h$ different projection matrices.
 
-Each head sees a subspace of the embedding (split $d_{model}$ dimensions into $h$ heads of $d_k = d_{model} / h$). One head might learn "which nouns agree in gender", another "which verbs precede this subject". The $W^O$ projection combines insights.
+In C++, we implement this by "splitting" the embedding dimension into heads (e.g. $d_{model}$ dimensions into $h$ heads of $d_k = d_{model} / h$), performing the matrix multiplications for all experts in parallel, and then using `Concat` to glue their findings back together before the final $W^O$ projection.
 
-## Causal Masking
+## Causal Masking (The "Cheating" Problem)
 
-During decoding, when generating token $t$, you can't look at future tokens $t+1, t+2, \ldots$. You must mask them. 
+During training for next-word prediction (like our MiniGPT capstone), we feed the model the entire sentence at once for efficiency. However, if we didn't use a mask, the attention mechanism would simply "look ahead" into the future to see the correct answer, completely ruining the learning process! 
 
 After computing the pre-softmax attention scores ($QK^T / \sqrt{d_k}$), entries at positions $j > i$ (future tokens) are manually set to $-\infty$. 
 
@@ -73,16 +81,18 @@ ffn_out = Linear(ReLU(Linear(x_norm)))
 x = x + Dropout(ffn_out)   // residual
 ```
 
-Residual connections help gradients flow and preserve information.
+Residual connections help gradients flow and preserve information. As discussed in [Lesson 03.5: Weight Initialization](/lessons/03-5-weight-initialization), this skip connection is the "superhighway" that lets gradients flow backward through 12+ transformer layers without vanishing!
 
 ## Positional Encoding
 
-Attention has no notion of sequence order — $\text{Attention}(Q, K, V)$ doesn't depend on positions. **Positional encodings** add position information:
+Because Transformers process everything at once and do not have a recurrent "loop," they have absolutely no idea what order the words are in to begin with. We must explicitly add **Positional Encodings** to the input Embeddings to give the model a mathematical sense of "first," "second," and "third."
 
 $$\text{PE}_{pos, 2i} = \sin(pos / 10000^{2i/d_{model}})$$
 $$\text{PE}_{pos, 2i+1} = \cos(pos / 10000^{2i/d_{model}})$$
 
 These sinusoidal patterns are fixed (not learned). Each position has a unique encoding that the attention mechanism can exploit to distinguish nearby vs. distant tokens.
+
+*The Seabird Final Evolution:* If our original T396 Seabird project had used Attention instead of a basic Linear Layer, it wouldn't just process a list of numbers. The Attention mechanism would dynamically weigh "Oiling Level" and "Species" *together*, seeing how those specific variables interact with each other to affect survival!
 
 ## Full TransformerDecoder
 
