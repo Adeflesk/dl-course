@@ -6,9 +6,23 @@ description: "Xavier initialization, variance preservation, and how bad initiali
 
 import InitializationComparison from '../../components/demos/ch3-5/InitializationComparison.astro';
 
+## Why Not Initialize to Zero? (Symmetry Breaking)
+
+The most obvious choice is to initialize all weights to `0.0`. But if all weights are identical, every neuron in a layer will compute the exact same output. During backpropagation, they will receive the exact same gradient update. They will stay mathematically "locked" together forever, acting like one single giant neuron. 
+
+We must initialize weights randomly to **break symmetry**, giving each neuron a slightly different starting point so they can learn different features.
+
 ## The Problem: Exploding and Vanishing Gradients
 
 Suppose you initialize a 100-layer neural network with random weights $W \sim \mathcal{N}(0, 1)$ (standard normal).
+
+<div class="callout">
+**Shallow vs. Deep Networks (The Seabird Era)**
+
+If you trained a network in the early 2000s (like a 1-hidden-layer network for the Seabird project), bad initialization didn't matter nearly as much. The gradient only had to travel backward through two sets of weights. 
+
+But as soon as you move from "Shallow" to "Deep" (dozens or hundreds of layers), the sensitivity to initialization grows exponentially. A "hidden lever" that was ignored 20 years ago is now the difference between a model converging in an hour versus never learning at all.
+</div>
 
 During forward pass, each layer computes:
 $$z^{(l)} = W^{(l)} \cdot a^{(l-1)} + b^{(l)}$$
@@ -52,6 +66,16 @@ $$\text{Var}(W) = \frac{1}{\frac{1}{2}(n_{in} + n_{out})} = \frac{2}{n_{in} + n_
 
 This is Xavier initialization!
 
+## He Initialization (The ReLU Factor)
+
+Xavier initialization is perfect for linear layers or symmetric activations (like Sigmoid or Tanh). But as we'll see, modern deep learning relies heavily on **ReLU**. 
+
+ReLU literally "kills" half the input space (any negative number becomes zero). Because half the data is zeroed out, the variance of the output is effectively cut in half! If you use Xavier with ReLU, your variance will slowly shrink layer by layer, leading right back to vanishing gradients.
+
+**He Initialization (Kaiming Init)** fixes this by simply doubling the variance to compensate for the dead half of the data:
+
+$$\text{Var}(W) = \frac{2}{n_{in}}$$
+
 ## Implementation in tensorflowccp
 
 ```cpp
@@ -74,6 +98,14 @@ public:
     }
 };
 ```
+
+<div class="callout">
+**Engineer's Note: C++ Randomness and Hard Boundaries**
+
+In C++, using `std::rand()` is generally poor practice for Machine Learning. Our `Tensor::uniform` function uses high-quality generators like `std::mt19937` (Mersenne Twister) to ensure the randomness is robust enough to effectively break symmetry.
+
+*Senior Dev Tip:* Why use a Uniform distribution instead of a Gaussian here? While both are mathematically valid for Xavier, drawing from a Uniform distribution imposes "hard boundaries." This guarantees that absolutely no outlier weights are generated, preventing any localized exploding gradients right at initialization.
+</div>
 
 ## Empirical Demonstration: Gradient Flow Across Layers
 
