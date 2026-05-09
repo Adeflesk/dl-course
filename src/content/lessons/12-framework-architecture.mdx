@@ -8,7 +8,9 @@ import CodeSnippet from '../../components/CodeSnippet.astro';
 
 Over the previous chapters, we have explored the mathematical foundations of deep learning and looked at isolated C++ snippets demonstrating how autodiff, convolutions, and attention work. 
 
-In this final chapter, we step back from the math and look at **software engineering**. If you want to use the `tensorflowccp` repository to build your own C++ machine learning project, how do you actually do it?
+In this final chapter, we step back from the raw math and focus entirely on **Software Engineering**. Building a production-ready AI engine isn't just about knowing the calculus; it is about designing abstractions that scale. We need to encapsulate complex matrix derivatives behind clean interfaces, manage the lifecycle of massive memory buffers, and design a composable API that allows researchers to build arbitrary network topologies without worrying about the underlying execution graph.
+
+If you want to use the `tensorflowccp` repository to build your own C++ machine learning project, or if you simply want to understand the architectural design patterns that power industry giants like PyTorch and TensorFlow, here is how the engine is built.
 
 ## The Codebase Anatomy
 

@@ -58,7 +58,7 @@ During decoding, when generating token $t$, you can't look at future tokens $t+1
 
 $$
 \text{Attention}(Q, K, V)_{ij} = \begin{cases}
-\text{softmax}(QK^T / \sqrt{d_k})_j & \text{if } j \le i \\
+\text{softmax}(QK^T / \sqrt{d_k})_j & \text{if } j \le i \\\\
 0 & \text{if } j \gt i
 \end{cases}
 $$
