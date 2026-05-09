@@ -8,7 +8,7 @@ import EmbeddingGradientFlow from '../../components/demos/ch9-5/EmbeddingGradien
 
 ## The Embedding Operation
 
-An **embedding** is a lookup table: given a token ID, retrieve its dense vector representation.
+An **embedding** is a lookup table. Computers do not understand words; they only understand vectors. The embedding layer is the bridge that translates discrete human concepts (like the word "cat") into a dense vector of floating-point numbers that the neural network can mathematically process.
 
 ```cpp
 // Embedding table: [vocab_size, embed_dim]
@@ -65,6 +65,8 @@ grad_table[5] = g5 + g5'  (row 5 was used twice)
 ```
 
 **Scatter-add** does exactly this: accumulate gradients into the table at specified indices.
+
+*(Engineer's Note: This is a massive C++ performance optimization. Because only one word's vector is used at a time, the backward pass only needs to update that specific row. Using a "Scatter-Add" operation directly on memory indices is exponentially faster than performing a full matrix multiplication against a one-hot encoded vector.)*
 
 ```cpp
 // Forward embedding lookup

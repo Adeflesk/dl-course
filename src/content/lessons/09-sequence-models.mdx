@@ -17,7 +17,7 @@ A **Recurrent Neural Network** processes sequences by applying the same computat
 
 $$h_t = \tanh(W_{ih} \cdot x_t + W_{hh} \cdot h_{t-1} + b)$$
 
-The hidden state $h_t$ is the "memory" — it carries information from all previous timesteps. At each step, you can use $h_t$ to:
+The hidden state $h_t$ is the "working memory" — it carries information from all previous timesteps into the future. It’s the difference between seeing a "bird" (static) and seeing a "bird flying" (sequence). At each step, you can use $h_t$ to:
 - Predict the next token
 - Classify the entire sequence
 - Generate a new token conditioned on history
@@ -32,7 +32,15 @@ If the Jacobian eigenvalues are $< 1$, the product shrinks exponentially: $\lamb
 
 Conversely, if the eigenvalues are $> 1$, the product grows exponentially. Gradients for early timesteps **explode**, causing numerical instability and NaN values. This is why we implemented **gradient clipping** in Chapter 5.
 
-Example: predicting "the cat sat on the mat" requires remembering "cat" from 4 tokens ago. RNNs fail on such dependencies.
+Example: predicting "the cat sat on the mat" requires remembering "cat" from 4 tokens ago. If a sentence is 50 words long, the gradient for the first word is multiplied by the weights 50 times. If those weights are slightly less than 1.0, the gradient disappears. This is why standard RNNs struggle with long sentences.
+
+### Many-to-One vs Many-to-Many
+
+RNNs are incredibly flexible depending on how you use the output:
+- **Many-to-One**: Reading a whole sequence to produce one output. (e.g. Reading an English sentence to predict "Sentiment").
+- **Many-to-Many**: Reading a sequence to produce a sequence. (e.g. Translating English to French).
+
+*The Seabird Analogy:* If you were predicting the survival of a seabird over time based on daily checkups, you would use a Many-to-One RNN. The network would process the daily sequence of weight and temperature, and output a single survival probability at the very end.
 
 ## LSTM: Long Short-Term Memory
 
@@ -56,7 +64,9 @@ $$o_t = \sigma(W_{io} \cdot x_t + W_{ho} \cdot h_{t-1} + b_o)$$
 **Hidden state** — apply output gate:
 $$h_t = o_t \odot \tanh(c_t)$$
 
-The key insight: $c_t = f_t \odot c_{t-1} + i_t \odot \tilde{c}_t$ is *additive* (not multiplicative). Backpropagating through addition doesn't multiply gradients — the chain rule gives:
+The key innovation: $c_t = f_t \odot c_{t-1} + i_t \odot \tilde{c}_t$ is *additive* (not multiplicative). The Cell State ($c_t$) acts as a high-speed rail for information. The Forget gate decides what to "delete" from memory, and the Input gate decides what to "save". 
+
+Because information flows through additions rather than multiplications, backpropagating through time doesn't multiply gradients — the chain rule gives:
 
 $$\frac{\partial L}{\partial c_t} = \frac{\partial L}{\partial c_{t+1}} \cdot 1 + \text{(gate path)}$$
 
@@ -77,6 +87,12 @@ Tensor W_hf;  // [hidden_size, hidden_size]
 Tensor b_f;   // [1, hidden_size]
 // ... same for input, cell, output gates ...
 ```
+
+<div class="callout">
+**Engineer's Note: The Shape Shift**
+
+This is a major shift in Tensor layout. Our inputs are now `[Batch, Sequence, Features]`. Your C++ loops must now iterate over the Sequence dimension. This means writing a `for` loop that calls `cell.forward()` for each time step, effectively building a giant computation graph that stretches out horizontally.
+</div>
 
 Forward pass processes an entire sequence:
 
@@ -114,6 +130,8 @@ for (int t = 0; t < seq_len; ++t) {
 }
 ```
 
+*(Note: Yes, the `tensorflowccp` engine handles this unrolling by creating a fresh Operation node for every single time step in the sequence. For long sequences, this makes the computation graph extremely large. It is the ultimate stress test for your C++ `shared_ptr` memory management!)*
+
 ## Backpropagation Through Time
 
 BPTT is automatic: the autodiff graph unrolls the computation, and `backward()` propagates through all timesteps:
@@ -140,6 +158,12 @@ for (int epoch = 0; epoch < num_epochs; ++epoch) {
 ```
 
 The gradient flow through the additive cell state preserves information across all $T$ timesteps.
+
+## The Bridge to Transformers
+
+Even with the brilliant gating of LSTMs, recurrent networks suffer from a fundamental "Bottleneck": the network *must* compress the entire past sequence into a single fixed-size hidden vector ($h_t$). If the sentence is a thousand words long, that vector runs out of capacity.
+
+In [Lesson 10: Transformers](/lessons/10-transformers), we will throw away "Recurrence" entirely. Instead of reading word-by-word, we will use a mechanism called **Attention** to look at the entire sequence at once.
 
 ## Interactive LSTM Text Generation
 
