@@ -54,9 +54,16 @@ In C++, we implement this by "splitting" the embedding dimension into heads (e.g
 
 During training for next-word prediction (like our MiniGPT capstone), we feed the model the entire sentence at once for efficiency. However, if we didn't use a mask, the attention mechanism would simply "look ahead" into the future to see the correct answer, completely ruining the learning process! 
 
-After computing the pre-softmax attention scores ($QK^T / \sqrt{d_k}$), entries at positions $j > i$ (future tokens) are manually set to $-\infty$. 
+During decoding, when generating token $t$, you can't look at future tokens $t+1, t+2, \ldots$. You mask them:
 
-When the softmax is applied, those $-\infty$ entries become $0$, completely zeroing out the network's ability to "attend" to future tokens.
+$$
+\text{Attention}(Q, K, V)_{ij} = \begin{cases}
+\text{softmax}(QK^T / \sqrt{d_k})_j & \text{if } j \le i \\
+0 & \text{if } j \gt i
+\end{cases}
+$$
+
+The future token entries become $0$ after softmax, completely zeroing out the network's ability to "attend" to them.
 
 ## Transformer Decoder Block
 
@@ -154,9 +161,7 @@ output = matmul(output, W_o);
 
 Below, visualize which tokens the model attends to. Type a phrase and pick an attention head to see its focus pattern.
 
-<UnlockManager featureId="ch10-attention-heatmap" triggerText="Visualize attention weights...">
-  <AttentionHeatmap />
-</UnlockManager>
+<AttentionHeatmap />
 
 **What to look for:**
 - Diagonal patterns: tokens primarily attend to themselves (strong position-preserving bias)

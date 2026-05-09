@@ -1,0 +1,54 @@
+---
+import Layout from '../layouts/Layout.astro';
+import '../styles/global.css';
+---
+
+<Layout title="About the Course | Deep Learning from Scratch">
+  <main class="max-w-3xl mx-auto py-12 px-6" style="max-width: 800px; margin: 4rem auto; line-height: 1.7; padding: 0 1.5rem;">
+    <a href="/" style="display: inline-block; margin-bottom: 2rem; color: var(--text-dim); text-decoration: none; font-family: var(--font-mono); font-size: 0.9rem;">
+      ← Back to Course
+    </a>
+    
+    <h1 style="font-size: 2.5rem; margin-bottom: 2rem; border-bottom: 1px solid var(--bg-border); padding-bottom: 1rem;">About This Project</h1>
+    
+    <div style="font-size: 1.1rem; color: var(--text);">
+      <p style="margin-bottom: 1.5rem;">
+        This isn't just another machine learning tutorial. This is a complete, production-ready Deep Learning framework built entirely from scratch in C++. 
+      </p>
+
+      <p style="margin-bottom: 1.5rem;">
+        While resources like fast.ai or Karpathy's excellent <i>micrograd</i> focus heavily on Python simplicity or minimalist theoretical implementations, this project bridges a crucial gap: <strong>Software Engineering for AI</strong>. We do not rely on PyTorch, NumPy, or TensorFlow. Instead, we manually build the machinery of thought—navigating manual memory management, <code>shared_ptr</code> graph topological sorting, SIMD/BLAS optimizations, and numerical stability mechanisms—before using our custom engine to train convolutional neural networks and generative transformers.
+      </p>
+
+      <h2 style="margin-top: 3rem; margin-bottom: 1rem; font-size: 1.5rem;">The Open University T396 Connection</h2>
+      
+      <p style="margin-bottom: 1.5rem;">
+        The inspiration for this framework originates from the Open University's legendary <i>T396: Artificial Intelligence</i> module, specifically its Java-based Seabird simulator. Back in 2001, students learned AI by clicking buttons and watching artificial agents navigate simple environments. 
+      </p>
+      
+      <p style="margin-bottom: 1.5rem;">
+        This project is the culmination of a 20-year-old desire to "unmask" the magic of that simulator. We have finally replaced the black boxes and hardcoded rule-based systems with pure mathematical optimization.
+      </p>
+
+      <h2 style="margin-top: 3rem; margin-bottom: 1rem; font-size: 1.5rem;">Source Code & Repository</h2>
+      
+      <p style="margin-bottom: 1.5rem;">
+        The entire C++ framework, alongside the interactive WASM (WebAssembly) modules that power the interactive demos on this site, is completely open-source.
+      </p>
+
+      <div style="background: var(--bg-subtle); border: 1px solid var(--bg-border); border-radius: 6px; padding: 1.5rem; margin-top: 2rem;">
+        <h3 style="margin-top: 0; font-size: 1.2rem;"><code>tensorflowccp</code></h3>
+        <p style="margin-bottom: 1rem; color: var(--text-dim); font-size: 0.95rem;">
+          The core engine repository. Contains the multidimensional Tensor library, Autodiff execution graph, Optimizers, and Transformer architectures.
+        </p>
+        <a href="https://github.com/Adeflesk/tensorflowccp" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 0.5rem; background: var(--accent); color: #000; padding: 0.5rem 1rem; border-radius: 4px; font-weight: 600; text-decoration: none;">
+          <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+          </svg>
+          View Source Code
+        </a>
+      </div>
+      
+    </div>
+  </main>
+</Layout>

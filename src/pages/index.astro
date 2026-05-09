@@ -24,13 +24,19 @@ lessons.sort((a, b) => a.data.chapter - b.data.chapter);
     </script>
   </head>
   <body>
+    <div style="position: absolute; top: 1.5rem; right: 2rem;">
+      <a href="/about" style="color: var(--text-dim); text-decoration: none; font-size: 0.95rem; font-family: var(--font-mono); transition: color 0.2s;">
+        [ About & Source Code ]
+      </a>
+    </div>
+
     <div class="hero animate-fade-in">
       <h1>Deep Learning<br />From First Principles</h1>
-      <p class="subtitle">
-        Build neural networks, understand transformers, and train models in C++ from scratch — without hand-wavy explanations.
+      <p class="subtitle" style="max-width: 800px; margin: 0 auto; line-height: 1.6;">
+        Most deep learning courses teach you how to use PyTorch. This course teaches you how to <i>build</i> PyTorch. You will construct a complete, production-ready C++ AI framework from absolute zero—no external libraries allowed. By the end, your custom engine will train CNNs and generate text with a Transformer.
       </p>
       
-      <div class="course-specs" style="display: flex; gap: 3rem; text-align: left; margin: 2rem 0 3rem 0; font-size: 0.95rem;">
+      <div class="course-specs" style="display: flex; gap: 3rem; text-align: left; margin: 2.5rem auto 3.5rem auto; justify-content: center; font-size: 0.95rem;">
         <div>
           <strong style="color: var(--text); display: block; margin-bottom: 0.5rem; font-family: var(--font-mono); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em;">For:</strong>
           <ul style="color: var(--text-dim); padding-left: 1.2rem; line-height: 1.6;">
@@ -54,9 +60,9 @@ lessons.sort((a, b) => a.data.chapter - b.data.chapter);
 
     <div class="chapter-grid animate-stagger">
       {lessons.map(lesson => (
-        <a href={`/lessons/${lesson.id}`} class="chapter-card">
-          <div class="chapter-num">
-            {String(lesson.data.chapter).padStart(2, '0')}
+        <a href={`/lessons/${lesson.id}`} class="chapter-card" style={lesson.data.chapter % 1 !== 0 ? "border-left: 2px solid var(--accent); background: var(--bg-border);" : ""}>
+          <div class="chapter-num" style={lesson.data.chapter % 1 !== 0 ? "font-size: 1.2rem; margin-bottom: 0.5rem; opacity: 0.8;" : ""}>
+            {lesson.data.chapter % 1 !== 0 ? "Deep Dive" : String(lesson.data.chapter).padStart(2, '0')}
           </div>
           <h3>{lesson.data.title}</h3>
           <p>{lesson.data.description}</p>

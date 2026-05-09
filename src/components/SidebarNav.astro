@@ -17,9 +17,14 @@ const sortedLessons = lessons.sort((a, b) => a.data.chapter - b.data.chapter);
   {sortedLessons.map(lesson => (
     <a
       href={`/lessons/${lesson.id}`}
-      class={`nav-item${lesson.data.chapter === currentChapter ? ' active' : ''}`}
+      class={`nav-item${lesson.data.chapter === currentChapter ? ' active' : ''} ${lesson.data.chapter % 1 !== 0 ? 'deep-dive' : ''}`}
+      style={lesson.data.chapter % 1 !== 0 ? "padding-left: 2rem; font-size: 0.9em; opacity: 0.9;" : ""}
     >
-      <span class="nav-chapter-num">{String(lesson.data.chapter).padStart(2, '0')}</span>
+      {lesson.data.chapter % 1 !== 0 ? (
+        <span class="nav-chapter-num" style="opacity: 0.5; font-size: 0.8em; margin-right: 0.5rem;">↳</span>
+      ) : (
+        <span class="nav-chapter-num">{String(lesson.data.chapter).padStart(2, '0')}</span>
+      )}
       {lesson.data.title}
     </a>
   ))}
