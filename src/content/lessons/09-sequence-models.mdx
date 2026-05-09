@@ -32,7 +32,9 @@ If the Jacobian eigenvalues are $< 1$, the product shrinks exponentially: $\lamb
 
 Conversely, if the eigenvalues are $> 1$, the product grows exponentially. Gradients for early timesteps **explode**, causing numerical instability and NaN values. This is why we implemented **gradient clipping** in Chapter 5.
 
-Example: predicting "the cat sat on the mat" requires remembering "cat" from 4 tokens ago. If a sentence is 50 words long, the gradient for the first word is multiplied by the weights 50 times. If those weights are slightly less than 1.0, the gradient disappears. This is why standard RNNs struggle with long sentences.
+Example: predicting "the cat sat on the mat" requires remembering "cat" from 4 tokens ago. If a sentence is 50 words long, the gradient for the first word is multiplied by the weights 50 times. 
+
+*The Insight:* In a CNN, gradients vanish across layers. In an RNN, they vanish across time steps. If your RNN can't remember the first word of a sentence, it's usually because the weights in your $W_{hh}$ matrix were initialized too small (refer back to [Lesson 3.5: Weight Initialization](/lessons/03-5-weight-initialization)), and the gradient died before it got back to $h_0$. This is why standard RNNs struggle with long sentences.
 
 ### Many-to-One vs Many-to-Many
 
@@ -40,7 +42,7 @@ RNNs are incredibly flexible depending on how you use the output:
 - **Many-to-One**: Reading a whole sequence to produce one output. (e.g. Reading an English sentence to predict "Sentiment").
 - **Many-to-Many**: Reading a sequence to produce a sequence. (e.g. Translating English to French).
 
-*The Seabird Analogy:* If you were predicting the survival of a seabird over time based on daily checkups, you would use a Many-to-One RNN. The network would process the daily sequence of weight and temperature, and output a single survival probability at the very end.
+*The Seabird Analogy:* If you were predicting the survival of a seabird over time based on daily checkups, you could predict the bird's survival probability *day-by-day* as it recovers. The hidden state would represent its "health trajectory". This is a Many-to-Many architecture. If you only predicted survival once at the very end of recovery, that would be Many-to-One.
 
 ## LSTM: Long Short-Term Memory
 
@@ -131,6 +133,12 @@ for (int t = 0; t < seq_len; ++t) {
 ```
 
 *(Note: Yes, the `tensorflowccp` engine handles this unrolling by creating a fresh Operation node for every single time step in the sequence. For long sequences, this makes the computation graph extremely large. It is the ultimate stress test for your C++ `shared_ptr` memory management!)*
+
+<div class="callout">
+**Engineer's Note: Truncated BPTT**
+
+If a sequence is 1000 tokens long, your C++ graph will hold thousands of `shared_ptr` nodes, which might crash the stack or use too much RAM. The pragmatic solution is **Truncated BPTT**, where you only propagate gradients back for a fixed number of steps (e.g., 32). It’s a necessary trade-off between computer memory and neural "memory."
+</div>
 
 ## Backpropagation Through Time
 

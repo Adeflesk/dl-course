@@ -150,6 +150,12 @@ public:
 - Sub-word tokenization (rare words are "known" if built from common morphemes)
 - Gradient updates proportional to frequency (weight rare tokens higher)
 
+## Visualizing Embeddings: Moving Meanings
+
+Because embeddings are just vectors in a high-dimensional space, we can measure the distance between them using metrics like **Cosine Similarity**. The incredible result of training an embedding layer is that words with similar meanings cluster together. 
+
+Even more astonishing is vector algebra: if you take the trained vector for `King`, subtract `Man`, and add `Woman`, the closest resulting vector in the space is almost always `Queen`! This proves that the "Scatter-Add" updates aren't just moving arbitrary numbers around—they are physically moving *meanings* through mathematical space!
+
 ## Interactive Gradient Flow Visualization
 
 Below, watch which embedding rows get updated as you select token sequences:
