@@ -6,9 +6,11 @@ description: "Convolution, pooling, feature maps, and spatial hierarchies"
 
 ## Why not just use linear layers on images?
 
-A 28×28 grayscale image is 784 numbers. A linear layer from 784 → 128 has 784×128 = 100,352 parameters — for just one layer. Worse: a linear layer treats every pixel independently, ignoring spatial structure. Whether a feature appears at position (3,5) or (14,22) looks completely different to a linear layer.
+A 28×28 grayscale image is 784 numbers. A linear layer from 784 → 128 has 784×128 = 100,352 parameters — for just one layer. 
 
-Convolutional layers fix both problems: fewer parameters via **weight sharing**, and spatial invariance via **sliding kernels**.
+Worse: a linear layer treats every pixel independently, ignoring spatial structure. Imagine if the Seabird project used photos instead of stats. With a Linear Layer, if a bird was in the top-left of the photo, the network would learn weights to detect a "Bird" there. If the same bird appeared in the bottom-right, the network would have to learn "Bird-ness" all over again from scratch!
+
+Convolutional layers fix both problems: fewer parameters via **weight sharing**, and **Translation Invariance** via sliding kernels. Once a CNN learns a "Wing" kernel, it can find that wing anywhere in the image.
 
 ## Convolution
 
@@ -18,6 +20,8 @@ For a 5×5 kernel on a 28×28 input with no padding:
 $$\text{output size} = 28 - 5 + 1 = 24$$
 
 The output is 24×24. With 8 kernels, the output is 8×24×24 — 8 feature maps, one per kernel.
+
+*(Padding Note: Notice the image shrank from $28$ to $24$. This is called "Valid" convolution. If we wanted to keep the image at $28 \times 28$, we would add a border of zeros around the input, known as "Same" padding. For our MNIST project, we stick to Valid convolution for educational simplicity).*
 
 ```cpp
 // From src/ops/conv2d.cpp — forward pass (pseudocode; actual uses flat-index arithmetic)
@@ -34,6 +38,14 @@ for (int n = 0; n < N; ++n)
       }
 ```
 
+<div class="callout">
+**C++ Performance: The "Im2Col" Hint**
+
+The 7-nested loop above is the absolute mathematical "Truth" of Convolution. However, in industrial frameworks, we don't actually execute these loops directly. 
+
+Instead, we use an algorithm called `Im2Col` (Image to Column). It transforms the image patches and the kernels into two massive 2D matrices. We then feed them into the highly optimized SIMD/BLAS Matrix Multiplication engine we discussed in [Lesson 04](/lessons/04-linear-layers). Ultimately, almost everything in Deep Learning compiles down to a fast MatMul!
+</div>
+
 **Weight sharing**: all 576 positions in a 24×24 feature map use the same 25 kernel weights. This is the key efficiency — 8×1×5×5 + 8 bias = 208 parameters instead of millions.
 
 ## Pooling
@@ -45,6 +57,8 @@ $$28\times28 \xrightarrow{\text{Conv2d(1,8,5)}} 8\times24\times24 \xrightarrow{\
 Pooling reduces computation and adds mild translation invariance — a feature shifted by 1 pixel still activates the same max.
 
 ### MaxPool backward
+
+*(Senior Engineer Insight: Notice below that the network must "remember" its state. We must store the `argmax` index during the forward pass so we know exactly where to route the gradient during the backward pass!)*
 
 During the forward pass, each pooling window records which input position had the maximum value — this is the **argmax index**. During backward, the gradient for that output position routes entirely to the argmax input position. Every other position in the window gets zero gradient.
 
@@ -68,7 +82,12 @@ The backward pass of a convolution is itself a convolution — specifically, the
 
 ## Hierarchical features
 
-The power of CNNs comes from stacking layers. Early layers learn low-level features (edges, corners). Later layers combine these into higher-level features (shapes, textures, eventually "digit 7"). This hierarchy emerges from training — you don't specify it.
+The power of CNNs comes from stacking layers. Early layers learn low-level features, while later layers combine these into higher-level representations. This hierarchy emerges purely from training — you don't explicitly program it.
+
+**Visualizing the Hierarchy (MNIST):**
+1. **Layer 1:** A "Vertical Edge" kernel slides over a raw "7", producing a feature map that highlights the straight vertical stem. A "Horizontal Edge" kernel highlights the top bar. 
+2. **Layer 2:** Deeper kernels look at the *output* of Layer 1. They combine the vertical and horizontal maps to detect a "Corner" or a "Loop".
+3. **Linear Layer:** Finally, the flattened layer looks at the corners and loops and confidently declares: "That's a 7."
 
 ## Flatten
 
