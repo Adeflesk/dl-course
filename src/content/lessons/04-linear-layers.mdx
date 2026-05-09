@@ -12,9 +12,22 @@ $$y = xW + b$$
 
 where $x$ is $[N, \text{in}]$, $W$ is $[\text{in}, \text{out}]$, $b$ is $[1, \text{out}]$, and $y$ is $[N, \text{out}]$. The weight matrix $W$ contains every connection between input and output neurons.
 
+<div class="callout">
+**Engineer's Note: Why Matrices?**
+
+We use matrices not just because the math is elegant, but because of **Hardware Symbiosis**. Modern CPUs and GPUs are fundamentally designed to execute massive blocks of floating-point math in parallel (via SIMD instructions). If you used a simple network of objects (where every neuron is a `class Neuron { std::vector<float> weights; }`), iterating through them would cause constant cache misses and branch mispredictions. Packing everything into a dense flat matrix ($W$) allows the CPU to calculate thousands of connections in a single hardware instruction.
+
+**The Golden Sanity Check:**
+90% of C++ AI bugs are simply "Dimension Mismatch" crashes. Before you compile, write down your shapes. If $X$ is $(B, M)$ and $W$ is $(M, N)$, the inner dimensions ($M$) must match, and the output MUST be $(B, N)$. If it's not, your code will segfault.
+</div>
+
 ## Matrix multiplication
 
 The output $y_{ij} = \sum_k x_{ik} W_{kj}$ — each output element is a dot product between a row of $x$ and a column of $W$. This is `matmul` in the framework.
+
+Let's look at this through the lens of the "Seabird Survival" dataset. If we have 32 birds in a batch, and each bird has 10 features, our input $x$ is a `[32, 10]` matrix in memory. If our first hidden layer has 64 neurons, $W$ is `[10, 64]`. 
+
+One single matrix multiplication `matmul(x, W)` processes the *entire flock of 32 birds simultaneously*, outputting a `[32, 64]` tensor.
 
 The gradient with respect to $W$ is:
 
@@ -50,6 +63,14 @@ void MatmulOperation::backward(const std::vector<float>& grad) {
     t2->accumulate_grad(gradW);
 }
 ```
+
+<div class="callout">
+**C++ Performance: The Nested Loop Reality**
+
+Our educational C++ code above uses a naive triple-nested `for` loop ($O(N^3)$). While mathematically correct, this is extremely slow for large matrices. 
+
+In industrial frameworks (or when you are ready to optimize your C++ engine), you would never write this loop manually. You would use **SIMD intrinsics** (AVX2/AVX-512) to process 16 floats at a time, or **OpenMP** to parallelize the outer loop across all CPU cores. Better yet, you would link against a highly optimized BLAS library like OpenBLAS or Intel MKL. The jump from a basic $O(N^3)$ loop to a cache-blocked SIMD implementation is where C++ engineering gets truly fun!
+</div>
 
 ## Xavier initialization
 
