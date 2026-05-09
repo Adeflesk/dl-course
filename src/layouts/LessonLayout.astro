@@ -27,6 +27,10 @@ const allLessons = await getCollection('lessons');
     <meta property="og:type" content="article" />
     <title>{title} — Deep Learning from Scratch</title>
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <script>
+      import { inject } from '@vercel/analytics';
+      inject();
+    </script>
   </head>
   <body>
     <div class="progress-bar" id="progress-bar"></div>
