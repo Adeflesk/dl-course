@@ -38,7 +38,11 @@ $$\sigma(x) = \frac{1}{1 + e^{-x}}$$
 
 Squashes any input to $(0, 1)$. Used in binary classification output layers (`BCELoss`). Gradient: $\sigma'(x) = \sigma(x)(1 - \sigma(x))$.
 
-Problem: for large $|x|$, gradient ≈ 0 — **vanishing gradient**. Sigmoid is rarely used in hidden layers anymore.
+Problem: **The Vanishing Gradient**. The gradient of a Sigmoid function reaches its absolute maximum at $x=0$, where $\sigma'(0) = 0.25$. 
+
+Because of the chain rule, gradients are multiplied backwards through the network. If you have a deep network with 10 hidden layers, the gradient signal is multiplied by at most $0.25$ ten times: $0.25^{10} \approx 0.0000009$. The gradient effectively vanishes before reaching the early layers, meaning they never learn.
+
+This mathematical bottleneck is exactly why deep neural networks failed to scale in the early 2000s (when Sigmoid was the default activation in tools like NeuralWorks). The shift to ReLU (which has a gradient of $1.0$) was the breakthrough that made modern Deep Learning possible. Today, Sigmoid is rarely used in hidden layers.
 
 ## Tanh
 

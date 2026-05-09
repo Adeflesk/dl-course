@@ -129,6 +129,12 @@ for (int j = 0; j < cols; j++) {
 
 **This is why matrix multiplication is fast in tensorflowccp:** it iterates rows sequentially, keeping the CPU cache warm.
 
+### The C++ Advantage: SIMD and Memory Alignment
+
+Because this course builds the engine in C++, you have access to hardware capabilities that Python courses often gloss over. By guaranteeing that our flat arrays are contiguous in memory, we can use **SIMD (Single Instruction, Multiple Data)**.
+
+Modern CPUs have AVX instructions that can load and process 4 or 8 `float` values *simultaneously* in a single CPU cycle. If you tried to write a standard loop in Python, it processes one number at a time. In C++, because the memory is perfectly aligned in a flat array, the compiler can automatically vectorize the loop (or you can write manual intrinsics) to process entire chunks of the tensor at once. This is why C++ remains the absolute gold standard for the low-level tensor operations that power every major AI framework.
+
 ## Key Takeaways
 
 1. **Multi-dimensional tensors are flat vectors** — shape is metadata for index calculation

@@ -34,6 +34,14 @@ $$ \text{BCE} = -\frac{1}{N} \sum_{i=1}^N \left[ y_i \log(\hat{y}_i) + (1 - y_i)
 **Why not MSE for classification?**
 MSE assumes the error scales linearly. But probabilities don't work that way. If the true label is 1, and the network predicts 0.0001, it is confidently wrong. The $\log$ in Cross-Entropy penalizes confident wrong answers exponentially, creating a much steeper gradient that forces the network to correct itself faster. If you use MSE for probabilities, the gradients tend to vanish when the network makes confident mistakes.
 
+<div class="callout">
+**Philosophy of AI: Rules vs. Probabilities**
+
+If you used early symbolic AI tools (like expert systems or Prolog/Flex in the 1990s and early 2000s), you know they relied on hardcoded logic rules. If a user made a spelling mistake, the logic evaluated to `False` and the system crashed or failed. 
+
+The shift to **Probabilistic Learning** (via Softmax and Cross-Entropy) represents a monumental change in AI philosophy. A neural network doesn't see a typo as a fatal error; it sees it as *noisy data*. By calculating a probability distribution, the network simply guesses the most mathematically likely intended meaning. It replaces brittle binary logic (`True`/`False`) with resilient continuous probabilities ($0.0 \to 1.0$).
+</div>
+
 ## Categorical Cross-Entropy
 
 For **multi-class classification** (like identifying digits 0-9 in the MNIST dataset), we generalize BCE to multiple classes. The network outputs a vector of probabilities (usually via a Softmax activation).

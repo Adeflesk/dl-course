@@ -51,6 +51,15 @@ This abstraction is incredibly powerful, but it hides the "magic." What is a `De
 
 To deeply understand deep learning, we are going to build our own miniature version of PyTorch or TensorFlow in C++ from absolute scratch. 
 
+<div class="callout">
+**Why C++?**
+
+If Python is the default language for Deep Learning, why are we building this in C++? 
+
+The short answer: **Python is for experimenting, C++ is for building.** 
+Underneath every high-level Python framework (PyTorch, TensorFlow) is a heavy-duty C++ engine doing the actual math. By writing the engine in C++, you will interact directly with memory pointers, cache locality, and SIMD hardware instructions. You aren't just learning how to *use* a neural network—you are learning the systems engineering required to *build* the framework itself.
+</div>
+
 ## The Curriculum Roadmap
 
 Here is the blueprint of how we will bridge the gap from raw computer memory to a trained Artificial Intelligence:

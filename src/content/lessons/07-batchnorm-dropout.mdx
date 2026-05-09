@@ -8,6 +8,14 @@ description: "Batch normalization, inverted dropout, and train/eval mode"
 
 As training proceeds, the distribution of activations at each layer shifts because the weights of preceding layers change. Historically, this was called **internal covariate shift**, and fixing it was the original motivation for BatchNorm. (Note: Recent research suggests BatchNorm actually works by smoothing the loss landscape, allowing for higher learning rates, rather than strictly fixing covariate shift—but the intuition remains useful!)
 
+<div class="callout">
+**Wait, what about normalizing the *inputs*?**
+
+Before we worry about *internal* covariate shift, we must normalize our raw data. Imagine an early 2000s dataset predicting seabird survival. Feature 1 is bird weight (`1200g`). Feature 2 is oiling percentage (`0.1`). 
+
+Because neural networks multiply inputs by weights ($y = wx$), the `1200` dominates the gradient. The network will spend all its time aggressively adjusting the weight for bird mass, forcing you to use a microscopically tiny learning rate, causing convergence to crawl. By standardizing all inputs to a mean of $0$ and variance of $1$, all features contribute equally to the gradient, allowing the optimizer to learn efficiently.
+</div>
+
 ## Batch Normalization
 
 BatchNorm normalizes activations across the batch dimension at each layer, then applies learned scale ($\gamma$) and shift ($\beta$):
