@@ -32,7 +32,9 @@ For **binary classification** (predicting yes/no, cat/dog), we use BCE. The netw
 $$ \text{BCE} = -\frac{1}{N} \sum_{i=1}^N \left[ y_i \log(\hat{y}_i) + (1 - y_i) \log(1 - \hat{y}_i) \right] $$
 
 **Why not MSE for classification?**
-MSE assumes the error scales linearly. But probabilities don't work that way. If the true label is 1, and the network predicts 0.0001, it is confidently wrong. The $\log$ in Cross-Entropy penalizes confident wrong answers exponentially, creating a much steeper gradient that forces the network to correct itself faster. If you use MSE for probabilities, the gradients tend to vanish when the network makes confident mistakes.
+MSE assumes the error scales linearly. But probabilities don't work that way. If the true label is 1, and the network predicts 0.0001, it is confidently wrong. The $\log$ in Cross-Entropy penalizes confident wrong answers exponentially.
+
+If you visualize the curve of $y = -\log(x)$ as $x \to 0$, you'll see it shoots vertically toward infinity. This creates a massive penalty for being confidently wrong, which generates a much steeper gradient that forces the network to correct itself instantly. If you use MSE for probabilities, the gradients tend to vanish when the network makes confident mistakes.
 
 <div class="callout">
 **Philosophy of AI: Rules vs. Probabilities**
@@ -48,7 +50,11 @@ For **multi-class classification** (like identifying digits 0-9 in the MNIST dat
 
 $$ \text{CE} = -\sum_{c=1}^C y_c \log(\hat{y}_c) $$
 
-Where $y$ is a one-hot encoded vector (e.g., `[0, 0, 1, 0, 0]` for class 2) and $\hat{y}$ is the predicted probability distribution. Because $y_c$ is 0 for all incorrect classes, this simplifies to just the negative log of the probability assigned to the *correct* class.
+Where $y$ is a one-hot encoded vector and $\hat{y}$ is the predicted probability distribution. 
+
+*(Data Prep Detail: If your dataset has a single categorical variable like "Species 1, Species 2, Species 3", you cannot feed it directly into Cross-Entropy as `y=2`. You must "One-Hot Encode" it into a vector where the correct index is 1 and all others are 0, e.g., `[0, 1, 0]`. This data prep step transforms a discrete category into a mathematical vector that perfectly aligns with the output of a Linear Layer).*
+
+Because $y_c$ is 0 for all incorrect classes, this simplifies to just the negative log of the probability assigned to the *correct* class.
 
 **The Derivative:**
 When combined with a Softmax activation, the derivative of Categorical Cross-Entropy is remarkably elegant:
@@ -89,7 +95,26 @@ public:
         return (preds_copy - targets_copy) * (2.0f / preds_copy.size());
     }
 };`}
-    highlight={[17]}
+};`}
+    highlight={[6, 7]}
 />
 
+<div class="callout">
+**Engineer's Note: Memory and Copies**
+
+In the educational C++ implementation above, `preds_copy = preds;` creates a full allocation copy of the tensor data. If `preds` is a massive tensor (e.g., in a high-resolution image task), this copy will instantly double your memory usage for that operation! 
+
+In production frameworks (and as discussed in [Lesson 12: Framework Architecture](/lessons/12-framework-architecture)), this is solved by storing a `std::shared_ptr` or reference to the original data buffer instead of copying it. This is exactly why the "immutability rule" is so important—we can safely hold a reference to `preds` only if we guarantee no other operation will modify it in-place during the forward pass.
+</div>
+
 The resulting tensor returned from `backward()` is the initial `grad_z` that is fed into the last layer of the network to begin the chain rule propagation all the way back to the first layer!
+
+## The Task Dictates the Loss
+
+Your choice of loss function fundamentally changes the architecture of your network.
+
+Consider the "Seabird Survival" problem (predicting bird health from oil exposure). You could frame this problem in two entirely different ways:
+1. **Regression:** You want to predict a continuous "Hardness Score" from 0 to 100. You would use a Linear activation at the end of the network and train it with **MSE**.
+2. **Classification:** You want to predict a binary probability: "Will it survive?" (Yes/No). You would use a Sigmoid activation at the end of the network and train it with **BCE**.
+
+The data might be identical, but the *task* dictates the Loss Function, which in turn dictates the final activation layer of your architecture.
