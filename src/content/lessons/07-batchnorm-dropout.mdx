@@ -100,7 +100,7 @@ Forgetting `model.eval()` before inference means BatchNorm uses batch statistics
 
 Dropout randomly zeroes each activation with probability $p$ during training, then scales surviving activations by $\frac{1}{1-p}$ to keep the expected value unchanged:
 
-$$y_i = \begin{cases} \frac{x_i}{1-p} & \text{with probability } 1-p \\ 0 & \text{with probability } p \end{cases}$$
+During training, each element is set to $0$ with probability $p$. To preserve the expected sum of the activations, the elements that are *not* dropped (probability $1-p$) are scaled up by multiplying them by $\frac{1}{1-p}$.
 
 This is **inverted dropout** — the scaling happens during training, so at eval time the pass-through is an exact identity (no scaling needed).
 
