@@ -12,13 +12,25 @@ $$y = xW + b$$
 
 where $x$ is $[N, \text{in}]$, $W$ is $[\text{in}, \text{out}]$, $b$ is $[1, \text{out}]$, and $y$ is $[N, \text{out}]$. The weight matrix $W$ contains every connection between input and output neurons.
 
+**The Geometry of the Bias (+ b)**:
+Why do we add $b$? Without the bias, the linear equation $y = xW$ forces the "decision line" to pass through the origin $(0,0)$. Imagine the Seabird project: if a bird had exactly "0 weight" and "0 oil exposure", a model without bias would be mathematically forced to output exactly "0 survival chance." The bias term unlocks the geometry, allowing the model to shift the line up, down, left, or right to fit the actual data.
+
 <div class="callout">
 **Engineer's Note: Why Matrices?**
 
 We use matrices not just because the math is elegant, but because of **Hardware Symbiosis**. Modern CPUs and GPUs are fundamentally designed to execute massive blocks of floating-point math in parallel (via SIMD instructions). If you used a simple network of objects (where every neuron is a `class Neuron { std::vector<float> weights; }`), iterating through them would cause constant cache misses and branch mispredictions. Packing everything into a dense flat matrix ($W$) allows the CPU to calculate thousands of connections in a single hardware instruction.
 
 **The Golden Sanity Check:**
-90% of C++ AI bugs are simply "Dimension Mismatch" crashes. Before you compile, write down your shapes. If $X$ is $(B, M)$ and $W$ is $(M, N)$, the inner dimensions ($M$) must match, and the output MUST be $(B, N)$. If it's not, your code will segfault.
+90% of C++ AI bugs are simply "Dimension Mismatch" crashes. Before you compile, write down your Shape Table. A Layer is simply a dimension changer:
+
+| Tensor | Shape | Meaning |
+| :--- | :--- | :--- |
+| **Input ($x$)** | `[Batch, in]` | E.g. 32 birds, 10 features |
+| **Weight ($W$)** | `[in, out]` | 10 input features to 64 neurons |
+| **Bias ($b$)** | `[1, out]` | 1 bias per output neuron |
+| **Output ($y$)** | `[Batch, out]`| 32 birds, 64 neuron activations |
+
+If the inner dimensions (`in`) don't match, your code will segfault.
 </div>
 
 ## Matrix multiplication
@@ -36,6 +48,8 @@ $$\frac{\partial L}{\partial W} = x^T \cdot \frac{\partial L}{\partial y}$$
 and with respect to $x$:
 
 $$\frac{\partial L}{\partial x} = \frac{\partial L}{\partial y} \cdot W^T$$
+
+*(Notice the beautiful symmetry: The backward pass is just a "mirrored" version of the forward pass, using the transposed weight matrix $W^T$. This mathematical elegance is exactly why we can build infinitely deep networks—the exact same hardware MatMul handles both directions!)*
 
 In flat-index terms, `gradX[i,k]` accumulates `grad[i,j] * W[k,j]` over all j, and `gradW[k,j]` accumulates `X[i,k] * grad[i,j]` over all batch rows i — exactly what the loops below compute.
 
@@ -129,3 +143,9 @@ nn::Sequential model({
 <div class="callout">
 If your backprop is wrong, XOR will not converge — or will converge to 0.5 (the network learns a constant). It's the fastest smoke test for a new autodiff implementation.
 </div>
+
+## Bridging to "Deep" Systems
+
+By connecting multiple Linear Layers with Non-Linear activation functions (which we cover next in [Lesson 05](/lessons/05-activations)), you construct a **Deep Neural Network**. 
+
+Historically, this architecture is called a Multi-Layer Perceptron (MLP). If you used the old T396 "Knowledge-Based System" tools in the 1990s, the MLP was the black box that did the magic. What you have built here in `tensorflowccp` is the 2026 C++ engine equivalent of that exact same system, but fully exposed, dynamic, and under your absolute control.
