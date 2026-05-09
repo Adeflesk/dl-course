@@ -103,11 +103,15 @@ import AutodiffDiagram from '../../diagrams/AutodiffDiagram.astro';
 
 <AutodiffDiagram />
 
+## The "Abstract Base Class" Pattern
+
+By making `Operation` an abstract base class with virtual `forward` and `backward` methods, we've implemented the **Command Pattern**. This makes the framework infinitely extensible. If you want to add a new activation function (like a "Leaky ReLU") or a custom mathematical layer, you don't have to touch the core engine's topological sort or memory management. You simply inherit from `Operation` and implement the two virtual methods. This open, extensible design is a massive leap forward from the closed, hardcoded simulators of the past.
+
 ## accumulate_grad vs backward
 
 Each operation's `backward()` method calls `accumulate_grad()` on its inputs — not `backward()`. This separates gradient accumulation from propagation. The topo-sort loop drives propagation; each op only needs to know how to compute its local contribution.
 
-*(Crucial detail: `accumulate_grad(new_grad)` is essentially `grad += new_grad`. If we naively used `grad = new_grad`, we would overwrite gradients whenever a tensor is used in multiple branches of the computation graph—a catastrophic bug!)*
+*(Crucial detail: `accumulate_grad(new_grad)` is essentially `grad += new_grad`. Imagine a graph where a tensor $x$ is used twice: $y = x + 1$ and $z = x \cdot 2$. The total gradient for $x$ is the sum of the gradients flowing back from both $y$ and $z$. If we naively used `grad = new_grad`, the gradient from $z$ would overwrite the gradient from $y$, and the network would "lose" the information from the $y$ branch—a catastrophic bug!)*
 
 ```cpp
 // MulOperation::backward (called with grad_z)
@@ -117,7 +121,17 @@ void backward(const std::vector<float>& grad_z) override {
     // grad_w += grad_z * x_data
     t2->accumulate_grad(elementwise_mul(grad_z, t1->data));
 }
+}
 ```
+
+<div class="callout">
+**Engineer's Note: The Danger of In-Place Modification**
+
+Because we use `std::shared_ptr`, it might be tempting to modify tensor data "in-place" to save memory. **Don't do it.** 
+
+Notice in `MulOperation::backward` above that computing the gradient requires the *original input values* (`t1->data` and `t2->data`) from the forward pass. If a subsequent operation modified `t1` in-place, the backward pass for the multiplication would use corrupted data, silently destroying your gradients. To keep the graph "pure," tensors must generally be treated as immutable once they are created.
+</div>
+
 
 <div class="callout">
 **The Golden Rule: You Must `zero_grad()`!**
@@ -200,3 +214,11 @@ y.backward(1.0f);  // Compute dy/dx
 ```
 
 </APIReference>
+
+## The Neural Network as a Macro-Graph
+
+If you've used older GUI simulators, you might think of a "Layer" as a fundamental, atomic building block of AI. But in modern Define-by-Run frameworks, that is an illusion.
+
+A "Linear Layer" is not a special piece of AI magic; it is simply a macro-operation—a tiny subgraph consisting of a `MatMulOperation` and an `AddOperation` (for the bias). 
+
+This is the ultimate secret of Deep Learning: even a massive, state-of-the-art Transformer with billions of parameters (like the one we build in [Lesson 11](/lessons/11-minigpt)) is really just one giant, interconnected graph of basic `Operation` nodes. It doesn't use different math than a simple XOR network; it just builds a deeper graph.
