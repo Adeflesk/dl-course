@@ -24,11 +24,6 @@ lessons.sort((a, b) => a.data.chapter - b.data.chapter);
     </script>
   </head>
   <body>
-    <div style="position: absolute; top: 1.5rem; right: 2rem;">
-      <a href="/about" style="color: var(--text-dim); text-decoration: none; font-size: 0.95rem; font-family: var(--font-mono); transition: color 0.2s;">
-        [ About & Source Code ]
-      </a>
-    </div>
 
     <div class="hero animate-fade-in">
       <h1>Deep Learning<br />From First Principles</h1>
@@ -55,7 +50,10 @@ lessons.sort((a, b) => a.data.chapter - b.data.chapter);
         </div>
       </div>
 
-      <a href="/lessons/00-the-big-picture" class="cta">Start the Course →</a>
+      <div style="display: flex; gap: 1rem; justify-content: center; align-items: center; margin-top: 1rem;">
+        <a href="/lessons/00-the-big-picture" class="cta">Start the Course →</a>
+        <a href="/about" class="cta" style="background: transparent; color: var(--accent); border: 1px solid var(--accent);">About & Source Code</a>
+      </div>
     </div>
 
     <div class="chapter-grid animate-stagger">
