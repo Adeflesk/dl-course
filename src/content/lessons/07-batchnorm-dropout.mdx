@@ -6,7 +6,11 @@ description: "Batch normalization, inverted dropout, and train/eval mode"
 
 ## The problem: internal covariate shift
 
-As training proceeds, the distribution of activations at each layer shifts because the weights of preceding layers change. Historically, this was called **internal covariate shift**, and fixing it was the original motivation for BatchNorm. (Note: Recent research suggests BatchNorm actually works by smoothing the loss landscape, allowing for higher learning rates, rather than strictly fixing covariate shift—but the intuition remains useful!)
+As training proceeds, the distribution of activations at each layer shifts because the weights of preceding layers change. Historically, this was called **internal covariate shift**. 
+
+*The Gravity Analogy:* Imagine trying to learn how to catch a ball, but someone is constantly changing the gravity in the room. Layer 2 is trying to learn on a "moving target" because Layer 1's outputs keep scaling up and down. BatchNorm "fixes the gravity" by forcing the outputs to a stable mean and variance, allowing later layers to focus on actual patterns instead of shifting scales.
+
+(Note: Recent research suggests BatchNorm actually works by smoothing the loss landscape, allowing for higher learning rates, rather than strictly fixing covariate shift—but the intuition remains useful!)
 
 <div class="callout">
 **Wait, what about normalizing the *inputs*?**
@@ -37,6 +41,15 @@ for (int c = 0; c < C; ++c) {
     rv[c] = (1 - momentum) * rv[c] + momentum * batch_var[c];
 }
 ```
+
+<div class="callout">
+**The Ordering Debate: Before or After ReLU?**
+
+The original BatchNorm paper suggested placing it *before* the activation function (e.g., `Linear -> BatchNorm -> ReLU`). However, many modern architectures find better results placing it *after* (`Linear -> ReLU -> BatchNorm`). In `tensorflowccp`, you have the power to experiment with both to see which converges faster for your specific dataset!
+
+**The Regularization Paradox:**
+BatchNorm also acts as a tiny bit of regularization. Because the mean and variance are calculated on a noisy random mini-batch, it injects a small amount of "noise" into the forward pass. This noise often means you can use a lower Dropout rate than you would otherwise need.
+</div>
 
 ## BatchNorm backward
 
@@ -93,7 +106,7 @@ If you implement BatchNorm and gradients go NaN, the backward pass is the first 
 
 ## Train / eval mode
 
-Modules with different training/evaluation behavior expose `train()` and `eval()` methods. `Sequential` propagates the mode recursively:
+To manage the differences between training and inference, our C++ `Module` base class holds a boolean `is_training` flag. Modules with different training/evaluation behavior expose `train()` and `eval()` methods that toggle this state. `Sequential` propagates the mode recursively to all child modules:
 
 ```cpp
 // Always call model.eval() before inference
@@ -120,7 +133,9 @@ for (auto& m : mask)
     m = dist(gen) ? scale : 0.0f;
 ```
 
-Why does this work? Each forward pass trains a different subset of the network. The network can't rely on any single neuron, forcing it to learn redundant representations — a form of regularization.
+Why does this work? Each forward pass trains a different subset of the network. The network can't rely on one "super-neuron" to do all the work. It’s like training a football team by making them play with a randomly selected 8 players every day—everyone on the roster is forced to learn how to score. 
+
+*The Seabird Perspective:* If we had only 500 seabirds in our dataset, a large network would quickly memorize every single bird's exact pixel values instead of learning *why* they survived. Dropout prevents this Co-adaptation. It forces the network to learn robust features like "The shape of a healthy wing" instead of "Bird #42 survived." It turns a "Memorizer" into a "Learner."
 
 <div class="callout">
 In the MNIST capstone: BatchNorm after Flatten stabilizes the large 1152-dimensional representation. Dropout(0.3) before the final linear layer prevents overfitting on the training set. Together they push test accuracy from 93.5% to 98.5%.
