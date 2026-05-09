@@ -1,4 +1,4 @@
-export type FunctionType = 'x2' | 'sin' | 'x3' | 'exp' | 'log' | 'x4';
+export type FunctionType = 'x2' | 'sin' | 'sigmoid' | 'x3' | 'exp' | 'log' | 'x4';
 
 export interface FunctionDef {
     name: string;
@@ -19,6 +19,15 @@ export const FUNCTIONS: Record<FunctionType, FunctionDef> = {
         fn: (x) => Math.sin(x),
         derivative: (x) => Math.cos(x),
         domain: [-2 * Math.PI, 2 * Math.PI],
+    },
+    sigmoid: {
+        name: 'f(x) = σ(x)',
+        fn: (x) => 1 / (1 + Math.exp(-x)),
+        derivative: (x) => {
+            const sx = 1 / (1 + Math.exp(-x));
+            return sx * (1 - sx);
+        },
+        domain: [-8, 8],
     },
     x3: {
         name: 'f(x) = x³',

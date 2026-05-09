@@ -107,6 +107,8 @@ import AutodiffDiagram from '../../diagrams/AutodiffDiagram.astro';
 
 Each operation's `backward()` method calls `accumulate_grad()` on its inputs — not `backward()`. This separates gradient accumulation from propagation. The topo-sort loop drives propagation; each op only needs to know how to compute its local contribution.
 
+*(Crucial detail: `accumulate_grad(new_grad)` is essentially `grad += new_grad`. If we naively used `grad = new_grad`, we would overwrite gradients whenever a tensor is used in multiple branches of the computation graph—a catastrophic bug!)*
+
 ```cpp
 // MulOperation::backward (called with grad_z)
 void backward(const std::vector<float>& grad_z) override {
