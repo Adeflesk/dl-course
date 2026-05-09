@@ -90,7 +90,7 @@ What happens when you transpose a tensor? The flat data stays exactly where it i
 
 Notice that the rightmost stride is no longer `1`. If you read this transposed tensor sequentially (e.g., iterating through rows and columns), you will be jumping around in the flat memory array rather than reading it contiguously. This is called a **view** or a **non-contiguous tensor**.
 
-Many operations (like optimized matrix multiplications or flattening) require elements to be sequential in memory. This is why frameworks like PyTorch have `.is_contiguous()` checks and `.contiguous()` methods, which force the framework to actually copy the scattered data into a brand new, perfectly aligned flat buffer with standard strides.
+Many operations (like optimized matrix multiplications or flattening) require elements to be sequential in memory. In `tensorflowccp`, operations that rely on flat contiguous iteration expect the tensor to be contiguous. This is exactly why high-level Python frameworks like PyTorch have `.is_contiguous()` checks and `.contiguous()` methods, which force the framework to actually copy the scattered data into a brand new, perfectly aligned flat buffer with standard strides.
 
 ## Broadcasting Algorithm
 
